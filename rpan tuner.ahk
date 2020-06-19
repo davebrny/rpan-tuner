@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 0.1
+version     = 0.1.1
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -13,8 +13,9 @@ setWorkingDir, % a_scriptDir
 hotkey, ^r, update_broadcasts
 
 categories = AnimalsOnReddit, distantsocializing, GlamourSchool, HeadlineWorthy
-           , RedditInTheKitchen, RedditMasterClasses, RedditSessions, talentShow
-           , TheArtistStudio, TheGamerLounge, TheYouShow, whereintheworld
+           , readwithme, RedditInTheKitchen, RedditMasterClasses, RedditSessions
+           , shortcircuit, talentShow, TheArtistStudio, TheGamerLounge, TheYouShow
+           , whereintheworld
 
 iniRead, update_frequency, settings.ini, settings, update_every
 if (update_frequency >= 1)
