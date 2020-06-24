@@ -31,4 +31,3 @@ the .exe is the compiled/self-contained version of the .ahk script that will run
 TODO:   
 - add a settings window  
 - choose which broadcasters you want notifications for  
-- resize window and remember position  

@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 0.2
+version     = 0.3
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -10,6 +10,7 @@ source      = https://github.com/davebrny/rpan-tuner
 #singleInstance, force
 sendMode, input
 setWorkingDir, % a_scriptDir
+onExit, gui_exit
 hotkey, ^r, update_broadcasts
 
 categories = AnimalsOnReddit, distantsocializing, GlamourSchool, HeadlineWorthy
@@ -21,6 +22,7 @@ iniRead, update_frequency, settings.ini, settings, update_every
 if (update_frequency >= 1)
     setTimer, time_check, 30000  ; check 30 seconds
 iniRead, show_notifications, settings.ini, settings, show_notifications
+iniRead, gui_size, settings.ini, settings, gui_size
 iniRead, broadcasters, settings.ini, lists, broadcasters
 
 goSub, load_gui
@@ -44,9 +46,15 @@ lv_modifyCol(6, "0")    ; url (hidden)
 gui font, s9, fixedSys
 gui add, button, x10 y10 w25 h25 gShow_menu, >
 gui add, statusBar, , live:
-sb_setParts("346", "155")
+gui +resize +lastFound
 gui show, w510 h260, rpan tuner
-gui +resize
+
+gui_id := winExist()
+if inStr(gui_size, "|")
+    {
+    split := strSplit(gui_size, "|")
+    winMove, % "ahk_id " gui_id, , % split[1], % split[2], % split[3], % split[4]
+    }
 
 selected := broadcasters  ; select all
 goSub, update_broadcasts
@@ -167,6 +175,22 @@ if (a_guiEvent = "DoubleClick")
     run, % listview_url
     }
 return
+
+
+GUISize:
+guicontrol, move, list_view, % "w" (a_guiWidth - 20) " h" (a_guiHeight - 65)
+if (a_guiWidth < 340)
+     sb_setParts("346", "155")
+else sb_setParts((a_guiWidth - 155), "155")
+return
+
+
+gui_exit:
+iniRead, saved_size, settings.ini, settings, gui_size
+winGetPos, x, y, w, h, % "ahk_id " gui_id
+if (saved_size != (x "|" y "|" w "|" h))
+    iniWrite, % x "|" y "|" w "|" h, settings.ini, settings, gui_size
+exitApp
 
 
 guiClose:
