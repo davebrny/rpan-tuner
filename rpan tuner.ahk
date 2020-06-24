@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 0.1.1
+version     = 0.2
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -32,19 +32,21 @@ return ; end of auto-execute ---------------------------------------------------
 
 load_gui:
 gui font, s10, fixedSys
-columns := "date|title|broadcaster|time|url"
+columns := "date|title|broadcaster|live|time|url"
 gui add, listView, x10 y45 w480 h175 sortDesc noSortHdr vList_view gLv_click, % columns
+lv_modifyCol(1, "0")    ; date column (hidden, for sorting)
+lv_modifyCol(2, "275")  ; title
+lv_modifyCol(3, "115")  ; broadcaster
+lv_modifyCol(4, "42")   ; live status
+lv_modifyCol(5, "170")  ; time
+lv_modifyCol(6, "0")    ; url (hidden)
+
 gui font, s9, fixedSys
 gui add, button, x10 y10 w25 h25 gShow_menu, >
 gui add, statusBar, , live:
 sb_setParts("346", "155")
 gui show, w510 h260, rpan tuner
 gui +resize
-lv_modifyCol(1, "0")    ; date column (hidden, for sorting)
-lv_modifyCol(2, "275")  ; title
-lv_modifyCol(3, "125")  ; broadcaster
-lv_modifyCol(4, "170")  ; time
-lv_modifyCol(5, "0")    ; url (hidden)
 
 selected := broadcasters  ; select all
 goSub, update_broadcasts
@@ -161,7 +163,7 @@ return
 lv_click:  ; listView
 if (a_guiEvent = "DoubleClick")
     {
-    lv_getText(listview_url, a_eventInfo, 5)
+    lv_getText(listview_url, a_eventInfo, 6)
     run, % listview_url
     }
 return
@@ -244,7 +246,7 @@ update_listView(selected) {
             url       := rpan[name][a_index].2
             time_date := rpan[name][a_index].3
             time_sort := rpan[name][a_index].4
-            lv_add("", time_sort, title, name, time_date, url)
+            lv_add("", time_sort, title, name, , time_date, url)
             }
         }
 
@@ -277,6 +279,15 @@ live_broadcasters(recent_broadcasts) {
             if !inStr(previous_live, this_broadcaster)
                 new_live .= this_broadcaster ", "
             live_list .= this_broadcaster ", "
+            loop, 100
+                {
+                lv_getText(row_url, a_index, 6)
+                if (row_url = this_url)  ; update listview
+                    {
+                    lv_modify(a_index, "col4", "live")
+                    break
+                    }
+                }
             }
         else off_air_list .= this_url "`n"
         checked_list .= this_broadcaster "`n"
