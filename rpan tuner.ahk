@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 0.3
+version     = 0.4
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -45,7 +45,7 @@ lv_modifyCol(6, "0")    ; url (hidden)
 
 gui font, s9, fixedSys
 gui add, button, x10 y10 w25 h25 gShow_menu, >
-gui add, statusBar, , live:
+gui add, statusBar, gSb_click, live:
 gui +resize +lastFound
 gui show, w510 h260, rpan tuner
 
@@ -175,6 +175,32 @@ if (a_guiEvent = "DoubleClick")
     run, % listview_url
     }
 return
+
+
+sb_click:  ; StatusBar
+if (live_list)
+    {
+    loop, parse, % trim(new_live, ", "), `,
+        menu, live_menu, add, % trim(a_loopField), open_broadcast
+    menu, live_menu, show
+    menu, live_menu, deleteAll  
+    }
+return
+
+
+open_broadcast:
+loop, 100
+    {
+    lv_getText(row_name, a_index, 3)
+    lv_getText(live_status, a_index, 4)
+    if (row_name = a_thisMenuItem) and (live_status = "live")
+        {
+        lv_getText(broadcast_url, a_index, 6)
+        break
+        }
+    }
+run, % broadcast_url
+Return
 
 
 GUISize:
