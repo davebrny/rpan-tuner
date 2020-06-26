@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 1.0.2
+version     = 1.0.3
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -113,10 +113,14 @@ loop, parse, broadcasters, |
 menu, broadcaster_menu, add
 menu, broadcaster_menu, add, add new, add_new_broadcaster
 
-iniRead, version, % a_lineFile, script_info, version
-menu, about_menu, add, % t := "rpan tuner: version " version, github_page
-menu, about_menu, disable, % t
-menu, about_menu, add,
+ahk_script := a_scriptDir "\" subStr(a_scriptName, 1, strLen(a_scriptName) - 4) ".ahk"
+if fileExist(ahk_script)
+    {
+    iniRead, version, % ahk_script, script_info, version
+    menu, about_menu, add, % t := "rpan tuner: version " version, github_page
+    menu, about_menu, disable, % t
+    menu, about_menu, add,
+    }
 menu, about_menu, add, github page, github_page
 
 menu, main_menu, add, select broadcaster, :broadcaster_menu
