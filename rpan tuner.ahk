@@ -178,7 +178,7 @@ return
 sb_click:  ; StatusBar
 if (live_list)
     {
-    loop, parse, % trim(new_live, ", "), `,
+    loop, parse, % trim(live_list, ", "), `,
         menu, live_menu, add, % trim(a_loopField), open_broadcast
     menu, live_menu, show
     menu, live_menu, deleteAll  
