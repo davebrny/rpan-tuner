@@ -21,9 +21,9 @@ the .exe is the compiled/self-contained version of the .ahk script that will run
 
 ## settings  
 
-> the following settings have to be changed in the .ini file for now. just remember to reload the script after making any changes there.  
+> the following settings have to be changed in the .json file for now. just remember to reload the script after making any changes there.  
 
-- set "update_every" to 0 turn off checking for new broadcasts  
+- set "update_frequency" to 0 turn off checking for new broadcasts  
 - set "show_notifications" to "no" to turn off the tray notifications  
 
 &nbsp;  

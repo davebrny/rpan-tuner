@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 0.4
+version     = 1.0
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -13,17 +13,17 @@ setWorkingDir, % a_scriptDir
 onExit, gui_exit
 hotkey, ^r, update_broadcasts
 
-categories = AnimalsOnReddit, distantsocializing, GlamourSchool, HeadlineWorthy
-           , readwithme, RedditInTheKitchen, RedditMasterClasses, RedditSessions
-           , shortcircuit, talentShow, TheArtistStudio, TheGamerLounge, TheYouShow
-           , whereintheworld
+#include, <JSON>
+fileRead, contents, settings.json
+o := JSON.Load(contents)
 
-iniRead, update_frequency, settings.ini, settings, update_every
-if (update_frequency >= 1)
-    setTimer, time_check, 30000  ; check 30 seconds
-iniRead, show_notifications, settings.ini, settings, show_notifications
-iniRead, gui_size, settings.ini, settings, gui_size
-iniRead, broadcasters, settings.ini, lists, broadcasters
+if (o.update_frequency >= 1)
+    setTimer, time_check, 30000  ; check every 30 seconds
+
+for index in o.broadcaster  ; convert object to string
+    broadcasters .= (broadcasters ? "|" : "") . index
+loop, % o.channels.maxIndex()
+    channels .= o.channels[a_index] ", "
 
 goSub, load_gui
 
@@ -50,11 +50,8 @@ gui +resize +lastFound
 gui show, w510 h260, rpan tuner
 
 gui_id := winExist()
-if inStr(gui_size, "|")
-    {
-    split := strSplit(gui_size, "|")
-    winMove, % "ahk_id " gui_id, , % split[1], % split[2], % split[3], % split[4]
-    }
+if (o.gui_size.maxIndex())  ; set x, y, width and heigth
+    winMove, % "ahk_id " gui_id, , % o.gui_size.1, % o.gui_size.2, % o.gui_size.3, % o.gui_size.4
 
 selected := broadcasters  ; select all
 goSub, update_broadcasts
@@ -95,7 +92,7 @@ if (updating != true)
     live_list := live_broadcasters(recent_broadcasts)
     strReplace(live_list, ",", "", live_count)
     sb_setText(live_count " live: " trim(live_list, ", "), 1)
-    if (new_live) and (show_notifications = "yes")
+    if (new_live) and (o.show_notifications = true)
         trayTip, new rpan broadcast!, % trim(new_live, ", "), 8
 
     formatTime, time_now, % a_now, HH:mm
@@ -145,14 +142,15 @@ add_new_broadcaster:
 inputBox, input, add new broadcaster, , , 210, 105
 if (errorLevel != 1)
     {
-    iniRead, broadcasters, settings.ini, lists, broadcasters
     if !inStr(broadcasters, input)  ; if not already added
         {
         broadcasters .= "|" input
         if inStr(broadcasters, "|") ; if "all" is selected then update it
             selected := broadcasters
         sort, broadcasters, D|      ; sort alphabetically
-        iniWrite, % trim(broadcasters), settings.ini, lists, broadcasters
+        
+        o.broadcaster[input] := {}  ; update json
+        save_json(o, "settings.json")
         }
     }
 return
@@ -212,10 +210,12 @@ return
 
 
 gui_exit:
-iniRead, saved_size, settings.ini, settings, gui_size
 winGetPos, x, y, w, h, % "ahk_id " gui_id
-if (saved_size != (x "|" y "|" w "|" h))
-    iniWrite, % x "|" y "|" w "|" h, settings.ini, settings, gui_size
+o.gui_size.1 := x
+o.gui_size.2 := y
+o.gui_size.3 := w
+o.gui_size.4 := h
+save_json(o, "settings.json")
 exitApp
 
 
@@ -225,10 +225,17 @@ exitApp
 
 time_check:
 next_update := last_update
-next_update += % update_frequency, m  ; add minutes
+next_update += % o.update_frequency, m  ; add minutes
 if (a_now > next_update)
     goSub, update_broadcasts  
 return
+
+
+save_json(object, path) {
+    file := fileOpen(path, "w `n")
+    file.write(JSON.Dump(object, , 4))
+    file.close()
+}
 
 
 download(url) {
@@ -248,8 +255,8 @@ parse_xml(xml) {
     loop, % post_count
         {
         entry := xml_element(xml, "<entry>", "</entry>", a_index)
-        category := xml_element(entry, "<category term=""", """")
-        if inStr(categories, category)   ; if post is a broadcast
+        channel := xml_element(entry, "<category term=""", """")
+        if inStr(channels, channel)   ; if post is a broadcast
             {
             title := xml_element(entry, "<title>", "</title>")
             link  := xml_element(entry, "<link href=""", """")
