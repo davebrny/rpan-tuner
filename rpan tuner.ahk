@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 1.0.3
+version     = 1.1
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -11,7 +11,11 @@ source      = https://github.com/davebrny/rpan-tuner
 sendMode, input
 setWorkingDir, % a_scriptDir
 onExit, gui_exit
+
 hotkey, ^r, update_broadcasts
+hotkey, ifWinActive, rpan tuner
+hotkey, m, show_menu
+hotkey, l, show_live_menu
 
 #include, <JSON>
 fileRead, contents, settings.json
@@ -106,11 +110,14 @@ return
 
 
 show_menu:
-menu, broadcaster_menu, add, &all, select_broadcaster
-menu, broadcaster_menu, add, ; separator
-loop, parse, broadcasters, |
-    menu, broadcaster_menu, add, % a_loopField, select_broadcaster
-menu, broadcaster_menu, add
+if (broadcasters)
+    {
+    menu, broadcaster_menu, add, &all, select_broadcaster
+    menu, broadcaster_menu, add, ; separator
+    loop, parse, % trim(broadcasters, "| "), |
+        menu, broadcaster_menu, add, % a_loopField, select_broadcaster
+    menu, broadcaster_menu, add
+    }
 menu, broadcaster_menu, add, add new, add_new_broadcaster
 
 ahk_script := a_scriptDir "\" subStr(a_scriptName, 1, strLen(a_scriptName) - 4) ".ahk"
@@ -123,9 +130,9 @@ if fileExist(ahk_script)
     }
 menu, about_menu, add, github page, github_page
 
-menu, main_menu, add, select broadcaster, :broadcaster_menu
-menu, main_menu, add, check for new broadcasts, update_broadcasts
-menu, main_menu, add, reload rpan tuner, reload_tuner
+menu, main_menu, add, &select broadcaster, :broadcaster_menu
+menu, main_menu, add, &check for new broadcasts, update_broadcasts
+menu, main_menu, add, &reload rpan tuner, reload_tuner
 menu, main_menu, add,
 menu, main_menu, add, about, :about_menu
 
@@ -181,13 +188,23 @@ return
 
 
 sb_click:  ; StatusBar
+goSub, show_live_menu
+return
+
+
+show_live_menu:
 if (live_list)
     {
     loop, parse, % trim(live_list, ", "), `,
         menu, live_menu, add, % trim(a_loopField), open_broadcast
-    menu, live_menu, show
-    menu, live_menu, deleteAll  
     }
+else
+    {
+    menu, live_menu, add, % t := "no broadcasts :(", open_broadcast
+    menu, live_menu, disable, % t
+    }
+menu, live_menu, show
+menu, live_menu, deleteAll 
 return
 
 

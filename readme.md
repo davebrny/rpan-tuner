@@ -17,6 +17,10 @@ the .exe is the compiled/self-contained version of the .ahk script that will run
 - click the > menu button at the top to add new broadcasters, then select "check for new broadcasts"  
 - use ctrl + r to manually check for new broadcasts (it checks every 4 minutes by default)  
 - double click on a broadcast in the list to open it in your browser  
+    + or click on the status bar at the bottom to show a menu of live broadcasts  
+
+> both menus can be shown by pressing the M or L key  
+
 &nbsp;
 
 ## settings  
