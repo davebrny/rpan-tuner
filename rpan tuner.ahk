@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 1.1
+version     = 1.1.1
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -57,7 +57,7 @@ gui_id := winExist()
 if (o.gui_size.maxIndex())  ; set x, y, width and heigth
     winMove, % "ahk_id " gui_id, , % o.gui_size.1, % o.gui_size.2, % o.gui_size.3, % o.gui_size.4
 
-selected := broadcasters  ; select all
+selected_broadcaster := "&all"
 goSub, update_broadcasts
 return
 
@@ -81,7 +81,7 @@ if (updating != true)
     max_broadcast := a_now
     max_broadcast += -2, h  ; the time 2 hours ago
 
-    loop, parse, broadcasters, |
+    loop, parse, % trim(broadcasters, "| "), |
         {
         broadcaster := a_loopField
         rpan[broadcaster] := [] ; initialise array
@@ -90,7 +90,7 @@ if (updating != true)
         parse_xml(xml)
         }
 
-    update_listView(selected)
+    update_listView(selected_broadcaster)
 
     sb_setText("", 2)
     sb_setText("searching for live broadcasts...", 1)
@@ -143,10 +143,8 @@ return
 
 
 select_broadcaster:
-if (a_thisMenuItem = "&all")
-     selected := broadcasters
-else selected := a_thisMenuItem
-update_listView(selected)
+selected_broadcaster := a_thisMenuItem
+update_listView(selected_broadcaster)
 return
 
 
@@ -157,10 +155,8 @@ if (errorLevel != 1)
     if !inStr(broadcasters, input)  ; if not already added
         {
         broadcasters .= "|" input
-        if inStr(broadcasters, "|") ; if "all" is selected then update it
-            selected := broadcasters
         sort, broadcasters, D|      ; sort alphabetically
-        
+
         o.broadcaster[input] := {}  ; update json
         save_json(o, "settings.json")
         }
@@ -311,26 +307,33 @@ format_time(str) {  ; convert time 2020-12-31T12:34:56+00:00
 }
 
 
-update_listView(selected) {
+update_listView(selected_broadcaster) {
     global
     guiControl, -redraw, list_view
     lv_delete()
 
-    loop, parse, selected, |
+    if (selected_broadcaster = "&all")
         {
-        name := a_loopField
-        loop, % rpan[name].maxIndex()
-            {
-            title     := rpan[name][a_index].1
-            url       := rpan[name][a_index].2
-            time_date := rpan[name][a_index].3
-            time_sort := rpan[name][a_index].4
-            lv_add("", time_sort, title, name, , time_date, url)
-            }
+        loop, parse, % trim(broadcasters, "| "), |
+            update_rows(a_loopField)   
         }
+    else update_rows(selected_broadcaster)
 
     lv_modifyCol(1, sort)  ; sort by recent decending
     guiControl, +redraw, list_view
+}
+
+
+update_rows(name) {
+    global
+    loop, % rpan[name].maxIndex()
+        {
+        title     := rpan[name][a_index].1
+        url       := rpan[name][a_index].2
+        time_date := rpan[name][a_index].3
+        time_sort := rpan[name][a_index].4
+        lv_add("", time_sort, title, name, , time_date, url)
+        }
 }
 
 
