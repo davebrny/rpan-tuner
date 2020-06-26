@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 1.0
+version     = 1.0.2
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -60,8 +60,9 @@ return
 
 
 update_broadcasts:
-if (broadcasters = "")
+if (broadcasters = "") and (first_run = "")
     {
+    first_run := 1
     goSub, add_new_broadcaster
     return
     }
