@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 1.1.1
+version     = 1.1.2
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -19,15 +19,17 @@ hotkey, l, show_live_menu
 
 #include, <JSON>
 fileRead, contents, settings.json
-o := JSON.Load(contents)
+a := JSON.Load(contents)
 
-if (o.update_frequency >= 1)
+if (a.update_frequency >= 1)
     setTimer, time_check, 30000  ; check every 30 seconds
 
-for index in o.broadcaster  ; convert object to string
-    broadcasters .= (broadcasters ? "|" : "") . index
-loop, % o.channels.maxIndex()
-    channels .= o.channels[a_index] ", "
+broadcasters := []  ; convert to array
+for index in a.broadcaster
+    broadcasters.push(index)
+
+loop, % a.channels.maxIndex()  ; convert to string
+    channels .= a.channels[a_index] ", "
 
 goSub, load_gui
 
@@ -54,8 +56,8 @@ gui +resize +lastFound
 gui show, w510 h260, rpan tuner
 
 gui_id := winExist()
-if (o.gui_size.maxIndex())  ; set x, y, width and heigth
-    winMove, % "ahk_id " gui_id, , % o.gui_size.1, % o.gui_size.2, % o.gui_size.3, % o.gui_size.4
+if (a.gui_size.maxIndex())  ; set x, y, width and heigth
+    winMove, % "ahk_id " gui_id, , % a.gui_size.1, % a.gui_size.2, % a.gui_size.3, % a.gui_size.4
 
 selected_broadcaster := "&all"
 goSub, update_broadcasts
@@ -64,7 +66,7 @@ return
 
 
 update_broadcasts:
-if (broadcasters = "") and (first_run = "")
+if (broadcasters.maxIndex() = "") and (first_run = "")
     {
     first_run := 1
     goSub, add_new_broadcaster
@@ -76,14 +78,15 @@ if (updating != true)
     updating := true
     setBatchLines, -1  ; run at full speed
     rpan := []  ; initialise array
+    rpan.live := []
     new_live := ""
     recent_broadcasts := ""
     max_broadcast := a_now
     max_broadcast += -2, h  ; the time 2 hours ago
 
-    loop, parse, % trim(broadcasters, "| "), |
+    loop, % broadcasters.maxIndex()
         {
-        broadcaster := a_loopField
+        broadcaster := broadcasters[a_index]
         rpan[broadcaster] := [] ; initialise array
         sb_setText("`t`tdownloading " broadcaster, 2)
         xml := download("https://www.reddit.com/user/" broadcaster "/submitted.rss")
@@ -95,9 +98,8 @@ if (updating != true)
     sb_setText("", 2)
     sb_setText("searching for live broadcasts...", 1)
     live_list := live_broadcasters(recent_broadcasts)
-    strReplace(live_list, ",", "", live_count)
-    sb_setText(live_count " live: " trim(live_list, ", "), 1)
-    if (new_live) and (o.show_notifications = true)
+    sb_setText(rpan.live.maxIndex() " live: " trim(live_list, ", "), 1)
+    if (new_live) and (a.show_notifications = true)
         trayTip, new rpan broadcast!, % trim(new_live, ", "), 8
 
     formatTime, time_now, % a_now, HH:mm
@@ -110,12 +112,12 @@ return
 
 
 show_menu:
-if (broadcasters)
+if (broadcasters.maxIndex())
     {
     menu, broadcaster_menu, add, &all, select_broadcaster
     menu, broadcaster_menu, add, ; separator
-    loop, parse, % trim(broadcasters, "| "), |
-        menu, broadcaster_menu, add, % a_loopField, select_broadcaster
+    loop, % broadcasters.maxIndex()
+        menu, broadcaster_menu, add, % broadcasters[a_index], select_broadcaster
     menu, broadcaster_menu, add
     }
 menu, broadcaster_menu, add, add new, add_new_broadcaster
@@ -149,16 +151,21 @@ return
 
 
 add_new_broadcaster:
-inputBox, input, add new broadcaster, , , 210, 105
+inputBox, new_broadcaster, add new broadcaster, , , 210, 105
 if (errorLevel != 1)
     {
-    if !inStr(broadcasters, input)  ; if not already added
+    for index in a.broadcaster  ; check if already added
         {
-        broadcasters .= "|" input
-        sort, broadcasters, D|      ; sort alphabetically
-
-        o.broadcaster[input] := {}  ; update json
-        save_json(o, "settings.json")
+        if (index = new_broadcaster)
+            already_added := true
+        }
+    if (already_added != true)
+        {
+        a.broadcaster[new_broadcaster] := {}  ; update json
+        save_json(a, "settings.json")
+        broadcasters := []
+        for index in a.broadcaster
+            broadcasters.push(index)
         }
     }
 return
@@ -189,10 +196,10 @@ return
 
 
 show_live_menu:
-if (live_list)
+if (rpan.live.maxIndex())
     {
-    loop, parse, % trim(live_list, ", "), `,
-        menu, live_menu, add, % trim(a_loopField), open_broadcast
+    loop, % rpan.live.maxIndex()
+        menu, live_menu, add, % rpan.live[a_index].1, open_broadcast
     }
 else
     {
@@ -205,17 +212,18 @@ return
 
 
 open_broadcast:
-loop, 100
+loop, % rpan.live.maxIndex() 
     {
-    lv_getText(row_name, a_index, 3)
-    lv_getText(live_status, a_index, 4)
-    if (row_name = a_thisMenuItem) and (live_status = "live")
+    this_index := a_index
+    for index, value in rpan.live[this_index]
         {
-        lv_getText(broadcast_url, a_index, 6)
-        break
+        if (value = a_thisMenuItem)
+            {
+            run, % rpan.live[this_index].2  ; run url
+            break
+            }
         }
     }
-run, % broadcast_url
 Return
 
 
@@ -229,11 +237,11 @@ return
 
 gui_exit:
 winGetPos, x, y, w, h, % "ahk_id " gui_id
-o.gui_size.1 := x
-o.gui_size.2 := y
-o.gui_size.3 := w
-o.gui_size.4 := h
-save_json(o, "settings.json")
+a.gui_size.1 := x
+a.gui_size.2 := y
+a.gui_size.3 := w
+a.gui_size.4 := h
+save_json(a, "settings.json")
 exitApp
 
 
@@ -243,7 +251,7 @@ exitApp
 
 time_check:
 next_update := last_update
-next_update += % o.update_frequency, m  ; add minutes
+next_update += % a.update_frequency, m  ; add minutes
 if (a_now > next_update)
     goSub, update_broadcasts  
 return
@@ -283,7 +291,7 @@ parse_xml(xml) {
             formatTime, time_date, % timestamp, (HH:mm) dd-MM-yyyy  ; for displaying
             formatTime, time_sort, % timestamp, yyyy-MM-dd HH:mm:ss ; for sorting listview
 
-            rpan[broadcaster].push([ title , link , time_date, time_sort ])
+            rpan[broadcaster].push([ title , link , time_date , time_sort ])
             if (timestamp > max_broadcast)    ; if within last 2 hours
                 recent_broadcasts .= time_sort "|" broadcaster "|" link "`n"
             }
@@ -314,8 +322,8 @@ update_listView(selected_broadcaster) {
 
     if (selected_broadcaster = "&all")
         {
-        loop, parse, % trim(broadcasters, "| "), |
-            update_rows(a_loopField)   
+        loop, % broadcasters.maxIndex()
+            update_rows(broadcasters[a_index])   
         }
     else update_rows(selected_broadcaster)
 
@@ -338,7 +346,7 @@ update_rows(name) {
 
 
 live_broadcasters(recent_broadcasts) {
-    global new_live
+    global rpan, new_live
     static off_air_list, previous_live
     sort, recent_broadcasts, r    ; sort most recent to the top
     loop, parse, recent_broadcasts, `n
@@ -360,11 +368,13 @@ live_broadcasters(recent_broadcasts) {
             {
             if !inStr(previous_live, this_broadcaster)
                 new_live .= this_broadcaster ", "
+            rpan.live.push([ this_broadcaster , this_url ])
             live_list .= this_broadcaster ", "
-            loop, 100
+
+            loop, 100  ; update listview
                 {
                 lv_getText(row_url, a_index, 6)
-                if (row_url = this_url)  ; update listview
+                if (row_url = this_url)
                     {
                     lv_modify(a_index, "col4", "live")
                     break
