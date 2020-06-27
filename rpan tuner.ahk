@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 1.1.2
+version     = 1.1.3
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -101,6 +101,7 @@ if (updating != true)
     sb_setText(rpan.live.maxIndex() " live: " trim(live_list, ", "), 1)
     if (new_live) and (a.show_notifications = true)
         trayTip, new rpan broadcast!, % trim(new_live, ", "), 8
+    update_live_status()
 
     formatTime, time_now, % a_now, HH:mm
     sb_setText("`t`tlast updated: " time_now, 2)
@@ -147,6 +148,7 @@ return
 select_broadcaster:
 selected_broadcaster := a_thisMenuItem
 update_listView(selected_broadcaster)
+update_live_status()
 return
 
 
@@ -345,6 +347,21 @@ update_rows(name) {
 }
 
 
+update_live_status() {
+    global
+    loop,
+        {
+        this_index := a_index
+        lv_getText(row_url, this_index, 6)
+        for index, value in rpan.live[this_index] {
+            if (value = row_url)
+                lv_modify(this_index, "col4", "live")
+            }
+        }
+    until (row_url = "")
+}
+
+
 live_broadcasters(recent_broadcasts) {
     global rpan, new_live
     static off_air_list, previous_live
@@ -370,16 +387,6 @@ live_broadcasters(recent_broadcasts) {
                 new_live .= this_broadcaster ", "
             rpan.live.push([ this_broadcaster , this_url ])
             live_list .= this_broadcaster ", "
-
-            loop, 100  ; update listview
-                {
-                lv_getText(row_url, a_index, 6)
-                if (row_url = this_url)
-                    {
-                    lv_modify(a_index, "col4", "live")
-                    break
-                    }
-                }
             }
         else off_air_list .= this_url "`n"
         checked_list .= this_broadcaster "`n"
