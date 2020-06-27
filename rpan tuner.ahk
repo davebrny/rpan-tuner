@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 1.1.3
+version     = 1.1.4
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -12,12 +12,12 @@ sendMode, input
 setWorkingDir, % a_scriptDir
 onExit, gui_exit
 
-hotkey, ^r, update_broadcasts
+hotkey, ^r, update_broadcasts  ; set hotkeys
 hotkey, ifWinActive, rpan tuner
 hotkey, m, show_menu
 hotkey, l, show_live_menu
 
-#include, <JSON>
+#include, <JSON>  ; load json
 fileRead, contents, settings.json
 a := JSON.Load(contents)
 
@@ -40,8 +40,8 @@ return ; end of auto-execute ---------------------------------------------------
 
 load_gui:
 gui font, s10, fixedSys
-columns := "date|title|broadcaster|live|time|url"
-gui add, listView, x10 y45 w480 h175 sortDesc noSortHdr vList_view gLv_click, % columns
+gui add, listView, x10 y45 w480 h175 sortDesc noSortHdr vList_view gLv_click
+                 , date|title|broadcaster|live|time|url
 lv_modifyCol(1, "0")    ; date column (hidden, for sorting)
 lv_modifyCol(2, "275")  ; title
 lv_modifyCol(3, "115")  ; broadcaster
@@ -51,7 +51,7 @@ lv_modifyCol(6, "0")    ; url (hidden)
 
 gui font, s9, fixedSys
 gui add, button, x10 y10 w25 h25 gShow_menu, >
-gui add, statusBar, gSb_click, live:
+gui add, statusBar, gSb_click, 0 live:
 gui +resize +lastFound
 gui show, w510 h260, rpan tuner
 
@@ -78,8 +78,6 @@ if (updating != true)
     updating := true
     setBatchLines, -1  ; run at full speed
     rpan := []  ; initialise array
-    rpan.live := []
-    new_live := ""
     recent_broadcasts := ""
     max_broadcast := a_now
     max_broadcast += -2, h  ; the time 2 hours ago
@@ -95,13 +93,15 @@ if (updating != true)
 
     update_listView(selected_broadcaster)
 
+    new_live := ""
+    rpan.live := []
     sb_setText("", 2)
     sb_setText("searching for live broadcasts...", 1)
     live_list := live_broadcasters(recent_broadcasts)
+    update_live_status()
     sb_setText(rpan.live.maxIndex() " live: " trim(live_list, ", "), 1)
     if (new_live) and (a.show_notifications = true)
         trayTip, new rpan broadcast!, % trim(new_live, ", "), 8
-    update_live_status()
 
     formatTime, time_now, % a_now, HH:mm
     sb_setText("`t`tlast updated: " time_now, 2)
@@ -165,7 +165,7 @@ if (errorLevel != 1)
         {
         a.broadcaster[new_broadcaster] := {}  ; update json
         save_json(a, "settings.json")
-        broadcasters := []
+        broadcasters := []  ; recreate array so its alphabetical
         for index in a.broadcaster
             broadcasters.push(index)
         }
@@ -192,7 +192,7 @@ if (a_guiEvent = "DoubleClick")
 return
 
 
-sb_click:  ; StatusBar
+sb_click:  ; statusBar
 goSub, show_live_menu
 return
 
@@ -221,7 +221,7 @@ loop, % rpan.live.maxIndex()
         {
         if (value = a_thisMenuItem)
             {
-            run, % rpan.live[this_index].2  ; run url
+            run, % rpan.live[this_index].2  ; open url
             break
             }
         }
@@ -354,7 +354,7 @@ update_live_status() {
         this_index := a_index
         lv_getText(row_url, this_index, 6)
         for index, value in rpan.live[this_index] {
-            if (value = row_url)
+            if (value = row_url)  ; if url is in live list
                 lv_modify(this_index, "col4", "live")
             }
         }
