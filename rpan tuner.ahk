@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 1.1.4
+version     = 1.1.5
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -40,13 +40,13 @@ return ; end of auto-execute ---------------------------------------------------
 
 load_gui:
 gui font, s10, fixedSys
-gui add, listView, x10 y45 w480 h175 sortDesc noSortHdr vList_view gLv_click
-                 , date|title|broadcaster|live|time|url
-lv_modifyCol(1, "0")    ; date column (hidden, for sorting)
-lv_modifyCol(2, "275")  ; title
-lv_modifyCol(3, "115")  ; broadcaster
-lv_modifyCol(4, "42")   ; live status
-lv_modifyCol(5, "170")  ; time
+gui add, listView, x10 y45 w480 h175 noSortHdr vList_view gLv_click
+                 , title|broadcaster|live|time|date|url
+lv_modifyCol(1, "275")  ; title
+lv_modifyCol(2, "115")  ; broadcaster
+lv_modifyCol(3, "42")   ; live status
+lv_modifyCol(4, "170")  ; time
+lv_modifyCol(5, "0")    ; date column (hidden, for sorting)
 lv_modifyCol(6, "0")    ; url (hidden)
 
 gui font, s9, fixedSys
@@ -329,7 +329,7 @@ update_listView(selected_broadcaster) {
         }
     else update_rows(selected_broadcaster)
 
-    lv_modifyCol(1, sort)  ; sort by recent decending
+    lv_modifyCol(5, "sortDesc")  ; sort by recent
     guiControl, +redraw, list_view
 }
 
@@ -342,7 +342,7 @@ update_rows(name) {
         url       := rpan[name][a_index].2
         time_date := rpan[name][a_index].3
         time_sort := rpan[name][a_index].4
-        lv_add("", time_sort, title, name, , time_date, url)
+        lv_add("", title, name, , time_date, time_sort, url)
         }
 }
 
@@ -355,7 +355,7 @@ update_live_status() {
         lv_getText(row_url, this_index, 6)
         for index, value in rpan.live[this_index] {
             if (value = row_url)  ; if url is in live list
-                lv_modify(this_index, "col4", "live")
+                lv_modify(this_index, "col3", "live")
             }
         }
     until (row_url = "")
