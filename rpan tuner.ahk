@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.1
+version     = 2.2
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -153,7 +153,14 @@ return
 show_live_menu:
 menu, live_menu, add, live broadcasts:, open_broadcast
 menu, live_menu, disable, live broadcasts:
-menu, live_menu, add,
+menu, live_menu, add, ; separator
+
+if (live_following)
+    {
+    loop, parse, live_following, % "`," , a_space
+        menu, live_menu, add, % trim(a_loopField), open_broadcast
+    menu, live_menu, add,
+    }
 
 channel_list := ""
 loop, % live_total
@@ -162,24 +169,22 @@ loop, % live_total
     channel     := live.data[a_index].post.subreddit.name
     if (broadcaster = "") or (channel = "")
         continue
-    menu, all_menu, add, % broadcaster, open_broadcast
+    menu, all_menu,  add, % broadcaster, open_broadcast
     menu, % channel, add, % broadcaster, open_broadcast
+    ++%channel%_count
     if !inStr(channel_list, channel)  ; if not already in list
         channel_list .= (channel_list ? "|" : "") . channel
     }
 
-if (live_following)
-    {
-    try menu, following_menu, deleteAll
-    loop, parse, live_following, % "`," , a_space
-        menu, following_menu, add, % trim(a_loopField), open_broadcast
-    }
-
-menu, live_menu, add, &all, :all_menu
-try menu, live_menu, add, &following, :following_menu
-menu, live_menu, add, ; separator
+menu, live_menu, add, % "&all " a_tab "(" live_total ")", :all_menu
+menu, live_menu, add,
 loop, parse, % channel_list, |
-    menu, live_menu, add, % a_loopfield, :%a_loopfield%
+    {
+    var_name := a_loopfield "_count"
+    channel_count := %var_name%  ; get value stored in variable name
+    %a_loopfield%_count := "" ; reset
+    menu, live_menu, add, % a_loopfield . a_tab "(" channel_count ")", :%a_loopfield%
+    }
 
 menu, live_menu, show
 loop, parse, % "live_menu|all_menu|" . channel_list, |
