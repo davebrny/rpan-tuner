@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.0
+version     = 2.1
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -82,8 +82,6 @@ return
 show_menu:
 menu, view_menu, add, &all, select_view
 menu, view_menu, add, &following, select_view
-menu, view_menu, add, ; separator
-menu, view_menu, add, add new, add_new_broadcaster
 
 ahk_script := a_scriptDir "\" subStr(a_scriptName, 1, strLen(a_scriptName) - 4) ".ahk"
 if fileExist(ahk_script)
@@ -95,10 +93,11 @@ if fileExist(ahk_script)
     }
 menu, about_menu, add, github page, github_page
 
-menu, main_menu, add, &view, :view_menu
+menu, main_menu, add, follow new broadcaster, follow_new_broadcaster
 menu, main_menu, add, &check for new broadcasts, update_broadcasts
+menu, main_menu, add, &view, :view_menu
+menu, main_menu, add, ; separator
 menu, main_menu, add, &reload rpan tuner, reload_tuner
-menu, main_menu, add,
 menu, main_menu, add, about, :about_menu
 
 menu, main_menu, show
@@ -113,15 +112,16 @@ update_listView(selected_view)
 return
 
 
-add_new_broadcaster:
-inputBox, new_broadcaster, add new broadcaster, , , 210, 105
+follow_new_broadcaster:
+inputBox, input, follow new broadcaster, add names separated by a comma, , 230, 105
 if (errorLevel != 1)  ; only if there was input
     {
-    if (in_obj(a.broadcaster, new_broadcaster) = false)  ; if not already added
+    loop, parse, input, % "," , % a_space
         {
-        a.broadcaster[new_broadcaster] := {}
-        save_json(a, "settings.json")  ; update json
+        if (in_obj(a.following, a_loopField) = false)  ; if not already added
+            a.following[a_loopField] := {}
         }
+    save_json(a, "settings.json")  ; update json
     }
 return
 
@@ -251,7 +251,7 @@ check_live_following() {
     loop, % live_total
         {
         this_broadcaster := live.data[a_index].post.authorInfo.name
-        if (in_obj(a.broadcaster, this_broadcaster)) ; if following this broadcaster
+        if (in_obj(a.following, this_broadcaster)) ; if following this broadcaster
             live_following .= (live_following ? ", " : "") . this_broadcaster
         else continue ; if not following
 
@@ -285,7 +285,7 @@ update_listView(selected_view) {
     loop, % live_total
         {
         broadcaster := live.data[a_index].post.authorInfo.name
-        if (selected_view = "&following") and (in_obj(a.broadcaster, broadcaster) = false)
+        if (selected_view = "&following") and (in_obj(a.following, broadcaster) = false)
             continue ; if not following
 
         title       := live.data[a_index].post.title
