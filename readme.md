@@ -1,6 +1,6 @@
 > autohotkey script to keep up to date with your favourite rpan broadcasters   
 
-<a href="url"><img src="https://i.imgur.com/Dtimf7V.png"></a><br></br>  
+<a href="url"><img src="https://i.imgur.com/LpHT5IN.png"></a><br></br>  
 
 ## installation  
 - install [AutoHotkey](https://www.autohotkey.com)  
@@ -15,7 +15,7 @@ the .exe is the compiled/self-contained version of the .ahk script that will run
 ## usage  
 
 - click the > menu button at the top to add new broadcasters, then select "check for new broadcasts"  
-- use ctrl + r to manually check for new broadcasts (it checks every 4 minutes by default)  
+- use ctrl + r to manually check for new broadcasts (it checks every 2 minutes by default)  
 - double click on a broadcast in the list to open it in your browser  
     + or click on the status bar at the bottom to show a menu of live broadcasts  
 
