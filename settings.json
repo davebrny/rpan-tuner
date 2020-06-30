@@ -1,22 +1,5 @@
 {
     "following": {},
-    "channels": [
-        "AnimalsOnReddit",
-        "distantsocializing",
-        "GlamourSchool",
-        "HeadlineWorthy",
-        "readwithme",
-        "readwithme",
-        "RedditInTheKitchen",
-        "RedditMasterClasses",
-        "RedditSessions",
-        "shortcircuit",
-        "talentShow",
-        "TheArtistStudio",
-        "TheGamerLounge",
-        "TheYouShow",
-        "whereintheworld"
-    ],
     "gui_size": [],
     "show_notifications": 1,
     "update_frequency": 2

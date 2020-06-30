@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.2
+version     = 2.2.1
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -70,7 +70,7 @@ if (updating != true)
     live_following := check_live_following()
     update_listView(selected_view)
     sb_setText(live_total " live", 1)
-    sb_setText(live_following, 2)
+    sb_setText(" " live_following, 2)
 
     setBatchLines, 10
     last_update := a_now
@@ -118,10 +118,10 @@ if (errorLevel != 1)  ; only if there was input
     {
     loop, parse, input, % "," , % a_space
         {
-        if (in_obj(a.following, a_loopField) = false)  ; if not already added
+        if (a.following.hasKey(a_loopField) = false)  ; if not already added
             a.following[a_loopField] := {}
         }
-    save_json(a, "settings.json")  ; update json
+    save_json(a, "settings.json")
     }
 return
 
@@ -256,7 +256,7 @@ check_live_following() {
     loop, % live_total
         {
         this_broadcaster := live.data[a_index].post.authorInfo.name
-        if (in_obj(a.following, this_broadcaster)) ; if following this broadcaster
+        if (a.following.hasKey(this_broadcaster))  ; if following this broadcaster
             live_following .= (live_following ? ", " : "") . this_broadcaster
         else continue ; if not following
 
@@ -274,14 +274,6 @@ check_live_following() {
 }
 
 
-in_obj(haystack, needle) {
-    for index in haystack
-        if (index = needle)
-            return index
-    return 0
-}
-
-
 update_listView(selected_view) {
     global a, live, live_total
     guiControl, -redraw, list_view
@@ -290,7 +282,7 @@ update_listView(selected_view) {
     loop, % live_total
         {
         broadcaster := live.data[a_index].post.authorInfo.name
-        if (selected_view = "&following") and (in_obj(a.following, broadcaster) = false)
+        if (selected_view = "&following") and (a.following.hasKey(broadcaster) = false)
             continue ; if not following
 
         title       := live.data[a_index].post.title
