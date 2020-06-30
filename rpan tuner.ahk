@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.2.1
+version     = 2.2.2
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -67,10 +67,10 @@ if (updating != true)
     sb_setText("tuning...", 1)
     live := JSON.Load(  download("https://strapi.reddit.com/broadcasts")  )
     live_total := (live.data[1].total_streams - 1)
-    live_following := check_live_following()
+    check_live_following()
     update_listView(selected_view)
     sb_setText(live_total " live", 1)
-    sb_setText(" " live_following, 2)
+    sb_set_following()
 
     setBatchLines, 10
     last_update := a_now
@@ -155,10 +155,10 @@ menu, live_menu, add, live broadcasts:, open_broadcast
 menu, live_menu, disable, live broadcasts:
 menu, live_menu, add, ; separator
 
-if (live_following)
+if (live.following.maxIndex())
     {
-    loop, parse, live_following, % "`," , a_space
-        menu, live_menu, add, % trim(a_loopField), open_broadcast
+    for index, value in live.following
+        menu, live_menu, add, % value, open_broadcast
     menu, live_menu, add,
     }
 
@@ -250,14 +250,19 @@ download(url) {
 
 
 check_live_following() {
-    global a, live, live_total, selected_view
-    static previous_broadcasts
+    local this_broadcaster, this_url, broadcasts
 
+    live.following := []
     loop, % live_total
         {
         this_broadcaster := live.data[a_index].post.authorInfo.name
         if (a.following.hasKey(this_broadcaster))  ; if following this broadcaster
-            live_following .= (live_following ? ", " : "") . this_broadcaster
+            {
+            for index, value in live.following     
+                if (value = this_broadcaster)
+                    continue ; if already added
+            live.following.push(this_broadcaster)  ; add to live following list
+            }
         else continue ; if not following
 
         this_url := live.data[a_index].post.outboundLink.url
@@ -269,8 +274,6 @@ check_live_following() {
 
     if (new_broadcast) and (a.show_notifications = true)
         trayTip, new rpan broadcast!, % new_broadcast, 8
-
-    return live_following
 }
 
 
@@ -297,4 +300,12 @@ update_listView(selected_view) {
 
     lv_modifyCol(4, "sort")  ; sort by rank
     guiControl, +redraw, list_view
+}
+
+
+sb_set_following() {
+    global live
+    for index, value in live.following
+        string .= (string ? ", " : "") . value
+    sb_setText(" " string, 2)
 }
