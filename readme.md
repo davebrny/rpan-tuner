@@ -1,6 +1,6 @@
 > autohotkey script to keep up to date with your favourite rpan broadcasters   
 
-<a href="url"><img src="https://i.imgur.com/LpHT5IN.png"></a><br></br>  
+<a href="url"><img src="https://i.imgur.com/BUFDJxB.png"></a><br></br>  
 
 ## installation  
 - install [AutoHotkey](https://www.autohotkey.com)  
@@ -14,10 +14,12 @@ the .exe is the compiled/self-contained version of the .ahk script that will run
 
 ## usage  
 
-- click the > menu button at the top to follow new broadcasters  
-- use ctrl + r to manually check for new broadcasts (it checks every 2 minutes by default)  
 - double click on a broadcast in the list to open it in your browser  
     + or click on the status bar at the bottom to show a menu of live broadcasts  
+- click the checkbox beside a broadcasters name to get desktop notifications for them  
+    + click the > menu button at the top to follow broadcasters that arent currently in the list  
+- use ctrl + r to manually check for new broadcasts (it checks every 2 minutes by default)  
+
 
 > both menus can be shown by pressing the M or L key  
 
@@ -28,7 +30,7 @@ the .exe is the compiled/self-contained version of the .ahk script that will run
 > the following settings have to be changed in the .json file for now. just remember to reload the script after making any changes there.  
 
 - set "update_frequency" to 0 turn off checking for new broadcasts  
-- set "show_notifications" to "no" to turn off the tray notifications  
+- set "show_notifications" to 0 to turn off the tray notifications  
 
 &nbsp;  
 

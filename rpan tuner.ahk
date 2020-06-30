@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.2.2
+version     = 2.3
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -32,10 +32,10 @@ return ; end of auto-execute ---------------------------------------------------
 
 load_gui:
 gui font, s10, fixedSys
-gui add, listView, x10 y45 w480 h175 vList_view gLv_click
+gui add, listView, x10 y45 w480 h175 checked altSubmit vList_view gLv_click
                  , broadcaster|title|channel|rank|time|url
-lv_modifyCol(1, "125")        ; broadcaster
-lv_modifyCol(2, "285")        ; title
+lv_modifyCol(1, "135")        ; broadcaster
+lv_modifyCol(2, "289")        ; title
 lv_modifyCol(3, "130")        ; channel
 lv_modifyCol(4, "42 integer") ; rank
 lv_modifyCol(5, "170")        ; time
@@ -46,7 +46,7 @@ gui add, button, x10 y10 w25 h25 gShow_menu, >
 gui add, statusBar, gSb_click, ? live
 sb_setParts("62")
 gui +resize +lastFound
-gui show, w530 h260, rpan tuner
+gui show, w540 h260, rpan tuner
 
 gui_id := winExist()
 if (a.gui_size.maxIndex())  ; set x, y, width and heigth
@@ -70,7 +70,7 @@ if (updating != true)
     check_live_following()
     update_listView(selected_view)
     sb_setText(live_total " live", 1)
-    sb_set_following()
+    sb_setText(" " live_following_string(), 2)
 
     setBatchLines, 10
     last_update := a_now
@@ -142,6 +142,26 @@ if (a_guiEvent = "DoubleClick")
     lv_getText(listview_url, a_eventInfo, 6)
     run, % listview_url
     }
+
+if (a_guiEvent == "I") and (errorLevel = "c")  ; checkbox clicked
+    {
+    lv_getText(broadcaster, a_eventInfo, 1)
+    if (errorLevel == "C") and (a.following.hasKey(broadcaster) = false)  ; if checked
+        {
+        a.following[broadcaster] := {}    ; add key
+        lv_getText(listview_url, a_eventInfo, 6)
+        if !inStr(previous_broadcasts, listview_url)
+            previous_broadcasts .= listview_url "`n"
+        }
+    else if (errorLevel == "c") and (a.following.hasKey(broadcaster))     ; if unchecked
+        {
+        a.following.delete(broadcaster)    ; remove key
+        if (selected_view = "&following")
+            update_listView(selected_view) ; refresh listView
+        }
+    sb_setText(" " live_following_string(), 2)
+    save_json(a, "settings.json")
+    }
 return
 
 
@@ -155,12 +175,13 @@ menu, live_menu, add, live broadcasts:, open_broadcast
 menu, live_menu, disable, live broadcasts:
 menu, live_menu, add, ; separator
 
-if (live.following.maxIndex())
+loop, % live_total
     {
-    for index, value in live.following
-        menu, live_menu, add, % value, open_broadcast
-    menu, live_menu, add,
+    broadcaster := live.data[a_index].post.authorInfo.name
+    if (a.following.hasKey(broadcaster))  ; if following
+        menu, live_menu, add, % broadcaster, open_broadcast
     }
+menu, live_menu, add,
 
 channel_list := ""
 loop, % live_total
@@ -250,27 +271,21 @@ download(url) {
 
 
 check_live_following() {
-    local this_broadcaster, this_url, broadcasts
+    local this_broadcaster, this_url, new_broadcast
 
-    live.following := []
     loop, % live_total
         {
         this_broadcaster := live.data[a_index].post.authorInfo.name
-        if (a.following.hasKey(this_broadcaster))  ; if following this broadcaster
-            {
-            for index, value in live.following     
-                if (value = this_broadcaster)
-                    continue ; if already added
-            live.following.push(this_broadcaster)  ; add to live following list
-            }
-        else continue ; if not following
+        if (a.following.hasKey(this_broadcaster) = false)
+            continue ; if not following
 
         this_url := live.data[a_index].post.outboundLink.url
-        broadcasts .= this_url "`n"
         if !inStr(previous_broadcasts, this_url) ; if not in previous list
+            {
             new_broadcast .= (new_broadcast ? ", " : "") . this_broadcaster
+            previous_broadcasts .= this_url "`n"
+            }
         }
-    previous_broadcasts := broadcasts
 
     if (new_broadcast) and (a.show_notifications = true)
         trayTip, new rpan broadcast!, % new_broadcast, 8
@@ -284,9 +299,12 @@ update_listView(selected_view) {
 
     loop, % live_total
         {
+        options := ""
         broadcaster := live.data[a_index].post.authorInfo.name
-        if (selected_view = "&following") and (a.following.hasKey(broadcaster) = false)
-            continue ; if not following
+        if (a.following.hasKey(broadcaster))   ; if following
+            options := "check"
+        else if (selected_view = "&following") ; and not following
+            continue
 
         title       := live.data[a_index].post.title
         channel     := live.data[a_index].post.subreddit.name
@@ -295,7 +313,7 @@ update_listView(selected_view) {
         url         := live.data[a_index].post.outboundLink.url
         start_time  := subStr(live.data[a_index].post.createdAt, 1, 19) ; remove +00:00 from timestamp
         if (broadcaster)
-            lv_add("", broadcaster, title, channel, global_rank, start_time, url)
+            lv_add(options, broadcaster, title, channel, global_rank, start_time, url)
         }
 
     lv_modifyCol(4, "sort")  ; sort by rank
@@ -303,9 +321,13 @@ update_listView(selected_view) {
 }
 
 
-sb_set_following() {
-    global live
-    for index, value in live.following
-        string .= (string ? ", " : "") . value
-    sb_setText(" " string, 2)
+live_following_string() {
+    local broadcaster, string
+    loop, % live_total
+        {
+        broadcaster := live.data[a_index].post.authorInfo.name
+        if (a.following.hasKey(broadcaster))  ; if following
+            string .= (string ? ", " : "") . broadcaster
+        }
+    return string
 }
