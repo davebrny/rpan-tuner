@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.3
+version     = 2.4
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -32,21 +32,20 @@ return ; end of auto-execute ---------------------------------------------------
 
 load_gui:
 gui font, s10, fixedSys
-gui add, listView, x10 y45 w480 h175 checked altSubmit vList_view gLv_click
+gui add, listView, x10 y10 w480 h260 checked altSubmit vList_view gLv_click
                  , broadcaster|title|channel|rank|time|url
 lv_modifyCol(1, "135")        ; broadcaster
-lv_modifyCol(2, "289")        ; title
+lv_modifyCol(2, "300")        ; title
 lv_modifyCol(3, "130")        ; channel
 lv_modifyCol(4, "42 integer") ; rank
 lv_modifyCol(5, "170")        ; time
 lv_modifyCol(6, "0")          ; url (hidden)
 
 gui font, s9, fixedSys
-gui add, button, x10 y10 w25 h25 gShow_menu, >
 gui add, statusBar, gSb_click, ? live
 sb_setParts("62")
 gui +resize +lastFound
-gui show, w540 h260, rpan tuner
+gui show, w550 h255, rpan tuner
 
 gui_id := winExist()
 if (a.gui_size.maxIndex())  ; set x, y, width and heigth
@@ -65,11 +64,15 @@ if (updating != true)
     setBatchLines, -1  ; run at full speed
 
     sb_setText("tuning...", 1)
-    live := JSON.Load(  download("https://strapi.reddit.com/broadcasts")  )
+    json_data := download("https://strapi.reddit.com/broadcasts")
+    if (json_data)
+        live := JSON.Load(json_data)
     live_total := (live.data[1].total_streams - 1)
     check_live_following()
     update_listView(selected_view)
-    sb_setText(live_total " live", 1)
+    if (json_data)
+         sb_setText(live_total " live", 1)
+    else sb_setText("off-air", 1)
     sb_setText(" " live_following_string(), 2)
 
     setBatchLines, 10
@@ -93,6 +96,12 @@ if fileExist(ahk_script)
     }
 menu, about_menu, add, github page, github_page
 
+lv_getText(row_broadcaster, lv_getNext(0), 1)  ; get selected row
+menu, main_menu, add, % "open " row_broadcaster, menu_broadcaster_open
+if (a.following.hasKey(row_broadcaster))
+     menu, main_menu, add, % "unfollow " row_broadcaster, menu_broadcaster_follow
+else menu, main_menu, add, % "follow "   row_broadcaster, menu_broadcaster_follow
+
 menu, main_menu, add, follow new broadcaster, follow_new_broadcaster
 menu, main_menu, add, &check for new broadcasts, update_broadcasts
 menu, main_menu, add, &view, :view_menu
@@ -106,9 +115,31 @@ loop, parse, % "main|view|about", |
 return
 
 
-select_view:
-selected_view := a_thisMenuItem
-update_listView(selected_view)
+menu_broadcaster_open:
+lv_getText(listview_url, lv_getNext(0), 6)  ; get selected row
+run, % listview_url
+return
+
+
+menu_broadcaster_follow:
+split := strSplit(a_thisMenuItem, a_space)
+if inStr(split[1], "unfollow")
+    {
+    lv_modify(lv_getNext(0), "-check")
+    a.following.delete( trim(split[2]) )  ; remove key
+    if (selected_view = "&following")
+        update_listView(selected_view)    ; refresh listView
+    }
+else
+    {
+    lv_modify(lv_getNext(1), "check")
+    a.following[ trim(split[2]) ] := {}    ; add key
+    lv_getText(listview_url, lv_getNext(0), 6)
+    if !inStr(previous_broadcasts, listview_url)
+        previous_broadcasts .= listview_url "`n"
+    }
+sb_setText(" " live_following_string(), 2)
+save_json(a, "settings.json")
 return
 
 
@@ -123,6 +154,12 @@ if (errorLevel != 1)  ; only if there was input
         }
     save_json(a, "settings.json")
     }
+return
+
+
+select_view:
+selected_view := a_thisMenuItem
+update_listView(selected_view)
 return
 
 
@@ -162,6 +199,12 @@ if (a_guiEvent == "I") and (errorLevel = "c")  ; checkbox clicked
     sb_setText(" " live_following_string(), 2)
     save_json(a, "settings.json")
     }
+return
+
+
+guiContextMenu:
+if (a_guiControl = "list_view")
+    goSub, show_menu
 return
 
 
@@ -226,7 +269,7 @@ return
 
 
 GUISize:  ; when gui is resized
-guicontrol, move, list_view, % "w" (a_guiWidth - 20) " h" (a_guiHeight - 65)
+guicontrol, move, list_view, % "w" (a_guiWidth - 20) " h" (a_guiHeight - 36)
 return
 
 
