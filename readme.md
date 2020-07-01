@@ -39,7 +39,7 @@ the first or underlined letter in each item can be used to select it. (e.g. pres
 ## settings  
 
 **update_frequency**  
-this needs to be changed in the .json file for now, just remember to reload the script after making any changes there   
+this needs to be changed in the settings.json file for now, just remember to reload the script after making any changes there.   
 set to 0 to turn off checking for new broadcasts. the lowest it can be set to is 1 second  
 &nbsp;  
 &nbsp; 
