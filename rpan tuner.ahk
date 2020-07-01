@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.4
+version     = 2.5
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -12,8 +12,9 @@ setWorkingDir, % a_scriptDir
 onExit, gui_exit
 
 hotkey, ^r, update_broadcasts  ; set hotkeys
+hotkey, enter, menu_broadcaster_open
 hotkey, ifWinActive, rpan tuner
-hotkey, m, show_menu
+hotkey, m, show_main_menu
 hotkey, l, show_live_menu
 
 #include, <JSON>  ; load json
@@ -21,7 +22,7 @@ fileRead, contents, settings.json
 a := JSON.Load(contents)
 
 if (a.update_frequency >= 1)
-    setTimer, time_check, 30000  ; check every 30 seconds
+    setTimer, time_check, 15000  ; check every 15 seconds
 
 goSub, load_gui
 
@@ -32,7 +33,7 @@ return ; end of auto-execute ---------------------------------------------------
 
 load_gui:
 gui font, s10, fixedSys
-gui add, listView, x10 y10 w480 h260 checked altSubmit vList_view gLv_click
+gui add, listView, x10 y10 w480 h260 checked altSubmit -multi vlistView gListView_click
                  , broadcaster|title|channel|rank|time|url
 lv_modifyCol(1, "135")        ; broadcaster
 lv_modifyCol(2, "300")        ; title
@@ -42,7 +43,7 @@ lv_modifyCol(5, "170")        ; time
 lv_modifyCol(6, "0")          ; url (hidden)
 
 gui font, s9, fixedSys
-gui add, statusBar, gSb_click, ? live
+gui add, statusBar, gStatusBar_click, ? live
 sb_setParts("62")
 gui +resize +lastFound
 gui show, w550 h255, rpan tuner
@@ -61,28 +62,26 @@ update_broadcasts:
 if (updating != true)
     {
     updating := true
-    setBatchLines, -1  ; run at full speed
-
     sb_setText("tuning...", 1)
+    
     json_data := download("https://strapi.reddit.com/broadcasts")
     if (json_data)
         live := JSON.Load(json_data)
     live_total := (live.data[1].total_streams - 1)
     check_live_following()
     update_listView(selected_view)
+    
     if (json_data)
          sb_setText(live_total " live", 1)
     else sb_setText("off-air", 1)
     sb_setText(" " live_following_string(), 2)
-
-    setBatchLines, 10
     last_update := a_now
     updating := false
     }
 return
 
 
-show_menu:
+show_main_menu:
 menu, view_menu, add, &all, select_view
 menu, view_menu, add, &following, select_view
 
@@ -96,11 +95,15 @@ if fileExist(ahk_script)
     }
 menu, about_menu, add, github page, github_page
 
-lv_getText(row_broadcaster, lv_getNext(0), 1)  ; get selected row
-menu, main_menu, add, % "open " row_broadcaster, menu_broadcaster_open
-if (a.following.hasKey(row_broadcaster))
-     menu, main_menu, add, % "unfollow " row_broadcaster, menu_broadcaster_follow
-else menu, main_menu, add, % "follow "   row_broadcaster, menu_broadcaster_follow
+if (lv_getNext(0))  ; if a row is selected
+    {
+    lv_getText(row_broadcaster, lv_getNext(0), 1)  ; get name
+    menu, main_menu, add, % "open " row_broadcaster, menu_broadcaster_open
+    if (a.following.hasKey(row_broadcaster))
+         menu, main_menu, add, % "unfollow " row_broadcaster, menu_broadcaster_follow
+    else menu, main_menu, add, % "follow "   row_broadcaster, menu_broadcaster_follow 
+    menu, main_menu, add,  
+    }
 
 menu, main_menu, add, follow new broadcaster, follow_new_broadcaster
 menu, main_menu, add, &check for new broadcasts, update_broadcasts
@@ -115,9 +118,12 @@ loop, parse, % "main|view|about", |
 return
 
 
-menu_broadcaster_open:
-lv_getText(listview_url, lv_getNext(0), 6)  ; get selected row
-run, % listview_url
+menu_broadcaster_open:  ; (right-click menu or enter)
+if (lv_getNext(0))  ; if a row is selected
+    {
+    lv_getText(listview_url, lv_getNext(0), 6)  ; get url
+    run, % listview_url
+    }
 return
 
 
@@ -173,14 +179,14 @@ run, https://github.com/davebrny/rpan-tuner
 return
 
 
-lv_click:  ; listView
-if (a_guiEvent = "DoubleClick")
+listView_click:
+if (a_guiEvent = "DoubleClick")  ;;;; open row url
     {
     lv_getText(listview_url, a_eventInfo, 6)
     run, % listview_url
     }
 
-if (a_guiEvent == "I") and (errorLevel = "c")  ; checkbox clicked
+if (a_guiEvent == "I") and (errorLevel = "c")  ;;;; checkbox clicked
     {
     lv_getText(broadcaster, a_eventInfo, 1)
     if (errorLevel == "C") and (a.following.hasKey(broadcaster) = false)  ; if checked
@@ -203,13 +209,18 @@ return
 
 
 guiContextMenu:
-if (a_guiControl = "list_view")
-    goSub, show_menu
+if (a_guiControl = "listView")
+    goSub, show_main_menu
 return
 
 
-sb_click:  ; statusBar
-goSub, show_live_menu
+statusBar_click:
+if (a_guiEvent = "RightClick")
+    {
+    lv_modify(lv_getNext(0), "-select")  ; deselect row
+    goSub, show_main_menu
+    }
+else goSub, show_live_menu
 return
 
 
@@ -220,25 +231,27 @@ menu, live_menu, add, ; separator
 
 loop, % live_total
     {
-    broadcaster := live.data[a_index].post.authorInfo.name
-    if (a.following.hasKey(broadcaster))  ; if following
-        menu, live_menu, add, % broadcaster, open_broadcast
+    this_broadcaster := live.data[a_index].post.authorInfo.name
+    if (a.following.hasKey(this_broadcaster))  ; if following
+        menu, live_menu, add, % this_broadcaster, open_broadcast
     }
-menu, live_menu, add,
 
 channel_list := ""
 loop, % live_total
     {
-    broadcaster := live.data[a_index].post.authorInfo.name
-    channel     := live.data[a_index].post.subreddit.name
-    if (broadcaster = "") or (channel = "")
+    this_broadcaster := live.data[a_index].post.authorInfo.name
+    this_channel     := live.data[a_index].post.subreddit.name
+    if (this_broadcaster = "") or (this_channel = "")
         continue
-    menu, all_menu,  add, % broadcaster, open_broadcast
-    menu, % channel, add, % broadcaster, open_broadcast
-    ++%channel%_count
-    if !inStr(channel_list, channel)  ; if not already in list
-        channel_list .= (channel_list ? "|" : "") . channel
+    menu, all_menu, add, % this_broadcaster, open_broadcast
+    menu, % this_channel, add, % this_broadcaster, open_broadcast
+    ++%this_channel%_count
+    if !inStr(channel_list, this_channel)  ; if not already in list
+        channel_list .= (channel_list ? "|" : "") . this_channel
     }
+
+if (live_following_string())
+    menu, live_menu, add, ; separator
 
 menu, live_menu, add, % "&all " a_tab "(" live_total ")", :all_menu
 menu, live_menu, add,
@@ -269,7 +282,7 @@ return
 
 
 GUISize:  ; when gui is resized
-guicontrol, move, list_view, % "w" (a_guiWidth - 20) " h" (a_guiHeight - 36)
+guicontrol, move, listView, % "w" (a_guiWidth - 20) " h" (a_guiHeight - 36)
 return
 
 
@@ -303,12 +316,14 @@ save_json(object, path) {
 
 
 download(url) {
+    setBatchLines, -1  ; run at full speed
     comObjError(false)
     request := comObjCreate("WinHttp.WinHttpRequest.5.1")
     request.open("GET", url)
     request.send()
     while (request.responseText = "") and (a_index <= 5)
         sleep 200
+    setBatchLines, 10ms
     return request.responseText
 }
 
@@ -337,14 +352,15 @@ check_live_following() {
 
 update_listView(selected_view) {
     global a, live, live_total
-    guiControl, -redraw, list_view
+    setBatchLines, -1  ; run at full speed
+    guiControl, -redraw, listView
     lv_delete()
 
     loop, % live_total
         {
         options := ""
-        broadcaster := live.data[a_index].post.authorInfo.name
-        if (a.following.hasKey(broadcaster))   ; if following
+        this_broadcaster := live.data[a_index].post.authorInfo.name
+        if (a.following.hasKey(this_broadcaster))   ; if following
             options := "check"
         else if (selected_view = "&following") ; and not following
             continue
@@ -355,22 +371,23 @@ update_listView(selected_view) {
         sub_rank    := live.data[a_index].rank_in_subreddit
         url         := live.data[a_index].post.outboundLink.url
         start_time  := subStr(live.data[a_index].post.createdAt, 1, 19) ; remove +00:00 from timestamp
-        if (broadcaster)
-            lv_add(options, broadcaster, title, channel, global_rank, start_time, url)
+        if (this_broadcaster)
+            lv_add(options, this_broadcaster, title, channel, global_rank, start_time, url)
         }
 
     lv_modifyCol(4, "sort")  ; sort by rank
-    guiControl, +redraw, list_view
+    guiControl, +redraw, listView
+    setBatchLines, 10ms
 }
 
 
-live_following_string() {
-    local broadcaster, string
+live_following_string() {  ; convert key list to string
+    local this_broadcaster, string
     loop, % live_total
         {
-        broadcaster := live.data[a_index].post.authorInfo.name
-        if (a.following.hasKey(broadcaster))  ; if following
-            string .= (string ? ", " : "") . broadcaster
+        this_broadcaster := live.data[a_index].post.authorInfo.name
+        if (a.following.hasKey(this_broadcaster))  ; if following
+            string .= (string ? ", " : "") . this_broadcaster
         }
     return string
 }
