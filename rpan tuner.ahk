@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.5
+version     = 2.6
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -11,11 +11,12 @@ sendMode, input
 setWorkingDir, % a_scriptDir
 onExit, gui_exit
 
-hotkey, ^r, update_broadcasts  ; set hotkeys
+hotkey, ifWinActive, rpan tuner  ; set hotkeys
+hotkey, ^r, update_broadcasts
 hotkey, enter, menu_broadcaster_open
-hotkey, ifWinActive, rpan tuner
 hotkey, m, show_main_menu
 hotkey, l, show_live_menu
+hotkey, t, toggle_on_top
 
 #include, <JSON>  ; load json
 fileRead, contents, settings.json
@@ -49,10 +50,12 @@ gui +resize +lastFound
 gui show, w550 h255, rpan tuner
 
 gui_id := winExist()
-if (a.gui_size.maxIndex())  ; set x, y, width and heigth
+if (a.gui_size.maxIndex())    ; set x, y, width and heigth
     winMove, % "ahk_id " gui_id, , % a.gui_size.1, % a.gui_size.2, % a.gui_size.3, % a.gui_size.4
+if (a.always_on_top = true)
+    winSet, alwaysOnTop, on, % "ahk_id " gui_id
 
-selected_view := "&all"
+selected_view := "&live"
 goSub, update_broadcasts
 return
 
@@ -63,14 +66,14 @@ if (updating != true)
     {
     updating := true
     sb_setText("tuning...", 1)
-    
+
     json_data := download("https://strapi.reddit.com/broadcasts")
     if (json_data)
         live := JSON.Load(json_data)
     live_total := (live.data[1].total_streams - 1)
     check_live_following()
     update_listView(selected_view)
-    
+
     if (json_data)
          sb_setText(live_total " live", 1)
     else sb_setText("off-air", 1)
@@ -81,19 +84,39 @@ if (updating != true)
 return
 
 
+
 show_main_menu:
-menu, view_menu, add, &all, select_view
-menu, view_menu, add, &following, select_view
+menu, view_menu, add, &live, select_view
+menu, view_menu, % (selected_view = "&live" ? "check" : "unCheck"), &live
+menu, view_menu, add, &following (live), select_view
+menu, view_menu, % (selected_view = "&following (live)" ? "check" : "unCheck"), &following (live)
+
+menu, window_menu, add, &always-on-top, toggle_on_top
+menu, window_menu, % (a.always_on_top = true ? "check" : "unCheck"), &always-on-top
+menu, window_menu, add ; separator
+menu, window_menu, add, resize to:, resize_window
+menu, window_menu, disable, resize to:
+menu, window_menu, add
+menu, window_menu, add, default, resize_window
+menu, window_menu, add, mini   , resize_window
+
+menu, settings_menu, add, show notifications, toggle_settings
+menu, settings_menu, % (a.show_notifications = true ? "check" : "unCheck"), show notifications
+menu, settings_menu, add, &always-on-top, toggle_on_top
+menu, settings_menu, % (a.always_on_top = true ? "check" : "unCheck"), &always-on-top
+menu, settings_menu, add, run at startup, run_at_startup
+menu, settings_menu, % (fileExist(a_startup "\" a_scriptName ".lnk") ? "check" : "unCheck"), run at startup
+menu, settings_menu, add, &reload rpan tuner, reload_tuner
 
 ahk_script := a_scriptDir "\" subStr(a_scriptName, 1, strLen(a_scriptName) - 4) ".ahk"
 if fileExist(ahk_script)
     {
     iniRead, version, % ahk_script, script_info, version
-    menu, about_menu, add, % t := "rpan tuner: version " version, github_page
-    menu, about_menu, disable, % t
-    menu, about_menu, add,
+    menu, help_menu, add, % t := "rpan tuner: version " version, github_page
+    menu, help_menu, disable, % t
+    menu, help_menu, add
     }
-menu, about_menu, add, github page, github_page
+menu, help_menu, add, github page, github_page
 
 if (lv_getNext(0))  ; if a row is selected
     {
@@ -106,16 +129,22 @@ if (lv_getNext(0))  ; if a row is selected
     }
 
 menu, main_menu, add, follow new broadcaster, follow_new_broadcaster
-menu, main_menu, add, &check for new broadcasts, update_broadcasts
+sec := a_now
+sec -= last_update, seconds  ; get seconds elapsed since last update
+time_elapsed := (floor(sec/60) < 1 ? "" : floor(sec/60) "m ") . mod(sec, 60) "s"  ; format to 1m 23s
+menu, main_menu, add, &update broadcasts (updated %time_elapsed% ago), update_broadcasts
+menu, main_menu, add  ; separator
 menu, main_menu, add, &view, :view_menu
-menu, main_menu, add, ; separator
-menu, main_menu, add, &reload rpan tuner, reload_tuner
-menu, main_menu, add, about, :about_menu
+menu, main_menu, add, &window, :window_menu
+menu, main_menu, add, &settings, :settings_menu
+menu, main_menu, add
+menu, main_menu, add, help, :help_menu
 
 menu, main_menu, show
-loop, parse, % "main|view|about", |
+loop, parse, % "main|view|window|settings|help", |
     menu, % a_loopField "_menu", deleteAll
 return
+
 
 
 menu_broadcaster_open:  ; (right-click menu or enter)
@@ -133,7 +162,7 @@ if inStr(split[1], "unfollow")
     {
     lv_modify(lv_getNext(0), "-check")
     a.following.delete( trim(split[2]) )  ; remove key
-    if (selected_view = "&following")
+    if (selected_view = "&following (live)")
         update_listView(selected_view)    ; refresh listView
     }
 else
@@ -149,8 +178,9 @@ save_json(a, "settings.json")
 return
 
 
+
 follow_new_broadcaster:
-inputBox, input, follow new broadcaster, add names separated by a comma, , 230, 105
+inputBox, input, follow new broadcaster, add names separated by a comma, , 240, 122
 if (errorLevel != 1)  ; only if there was input
     {
     loop, parse, input, % "," , % a_space
@@ -169,6 +199,29 @@ update_listView(selected_view)
 return
 
 
+toggle_on_top:
+winSet, alwaysOnTop, toggle, % "ahk_id " gui_id
+winGet, ex_style, exStyle, % "ahk_id " gui_id
+if (ex_style & 0x8)    ; 0x8 is WS_EX_TOPMOST
+     a.always_on_top := true
+else a.always_on_top := false
+return
+
+
+resize_window:
+if (a_thisMenuItem = "default")
+    winMove, % "ahk_id " gui_id, , , , 700, 350
+else if (a_thisMenuItem = "mini")
+    winMove, % "ahk_id " gui_id, , , , 480, 71
+return
+
+
+toggle_settings:
+menu_item := strReplace(a_thisMenuItem, " ", "_")
+a[menu_item] := (a[menu_item] = 1 ? 0 : 1)
+return
+
+
 reload_tuner:
 reload
 return
@@ -177,6 +230,7 @@ return
 github_page:
 run, https://github.com/davebrny/rpan-tuner
 return
+
 
 
 listView_click:
@@ -199,7 +253,7 @@ if (a_guiEvent == "I") and (errorLevel = "c")  ;;;; checkbox clicked
     else if (errorLevel == "c") and (a.following.hasKey(broadcaster))     ; if unchecked
         {
         a.following.delete(broadcaster)    ; remove key
-        if (selected_view = "&following")
+        if (selected_view = "&following (live)")
             update_listView(selected_view) ; refresh listView
         }
     sb_setText(" " live_following_string(), 2)
@@ -209,8 +263,7 @@ return
 
 
 guiContextMenu:
-if (a_guiControl = "listView")
-    goSub, show_main_menu
+goSub, show_main_menu
 return
 
 
@@ -224,10 +277,14 @@ else goSub, show_live_menu
 return
 
 
+
 show_live_menu:
+if (live_total = "")
+    return
+
 menu, live_menu, add, live broadcasts:, open_broadcast
 menu, live_menu, disable, live broadcasts:
-menu, live_menu, add, ; separator
+menu, live_menu, add ; separator
 
 loop, % live_total
     {
@@ -254,7 +311,7 @@ if (live_following_string())
     menu, live_menu, add, ; separator
 
 menu, live_menu, add, % "&all " a_tab "(" live_total ")", :all_menu
-menu, live_menu, add,
+menu, live_menu, add
 loop, parse, % channel_list, |
     {
     var_name := a_loopfield "_count"
@@ -267,6 +324,7 @@ menu, live_menu, show
 loop, parse, % "live_menu|all_menu|" . channel_list, |
     menu, % a_loopField, deleteAll
 return
+
 
 
 open_broadcast:
@@ -362,7 +420,7 @@ update_listView(selected_view) {
         this_broadcaster := live.data[a_index].post.authorInfo.name
         if (a.following.hasKey(this_broadcaster))   ; if following
             options := "check"
-        else if (selected_view = "&following") ; and not following
+        else if (selected_view = "&following (live)") ; and not following
             continue
 
         title       := live.data[a_index].post.title
@@ -391,3 +449,10 @@ live_following_string() {  ; convert key list to string
         }
     return string
 }
+
+
+run_at_startup:
+if fileExist(a_startup "\" a_scriptName ".lnk")
+     fileDelete, % a_startup "\" a_scriptName ".lnk"
+else fileCreateShortcut, % a_scriptFullPath, % a_startup "\" a_scriptName ".lnk"
+return

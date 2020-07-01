@@ -15,25 +15,35 @@ the .exe is the compiled/self-contained version of the .ahk script that will run
 ## usage  
 
 - double click on a broadcast in the list to open it in your browser  
-    + or click on the status bar at the bottom to show a menu of live broadcasts  
 - click the checkbox beside a broadcasters name to get desktop notifications for them  
-    + to follow a broadcaster that isnt currently in the list use the right click menu   
-- use ctrl + r to manually check for new broadcasts (it checks every 2 minutes by default)  
+    + to follow a broadcaster that isnt currently live, select "follow new" in the main menu
+- use  <kbd>ctrl</kbd> + <kbd>r</kbd> to manually update broadcasts. (it updates every 2 minutes by default)  
+&nbsp;
 
+**menus**  
+- right click (anywhere) to access the main menu  
+- left click (on the status bar) to access the live menu  
 
-> both menus can be shown by pressing the M or L key  
+both menus can be shown by pressing the M or L key.  
+the first or underlined letter in each item can be used to select it. (e.g. press M then W then A to toggle the always-on-top option)  
+&nbsp;
 
+**mini mode**  
+\- resize the window by selecting "window / mini" in the main menu  
+\- turn on always-on-top  
+\- left click on the status bar to view live broadcasts  
+
+<a href="url"><img src="https://i.imgur.com/LOtyYYr.png"></a>
 &nbsp;
 
 ## settings  
 
-> the following settings have to be changed in the .json file for now. just remember to reload the script after making any changes there.  
-
-- set "update_frequency" to 0 turn off checking for new broadcasts  
-- set "show_notifications" to 0 to turn off the tray notifications  
-
+**update_frequency**  
+this needs to be changed in the .json file for now, just remember to reload the script after making any changes there   
+set to 0 to turn off checking for new broadcasts. the lowest it can be set to is 1 second  
 &nbsp;  
+&nbsp; 
 
 TODO:   
-- add a settings window  
+- download the post history for the broadcasters you are following  
 - choose which broadcasters you want notifications for  
