@@ -16,7 +16,7 @@ the .exe is the compiled/self-contained version of the .ahk script that will run
 
 - double click on a broadcast in the list to open it in your browser  
 - click the checkbox beside a broadcasters name to get desktop notifications for them  
-    + to follow a broadcaster that isnt currently live, select "follow new" in the main menu
+    + to follow a broadcaster that isnt currently live, select "following/follow new" in the main menu 
 - use  <kbd>ctrl</kbd> + <kbd>r</kbd> to manually update broadcasts. (it updates every 2 minutes by default)  
 &nbsp;
 
@@ -38,6 +38,10 @@ the first or underlined letter in each item can be used to select it. (e.g. pres
 
 ## settings  
 
+**notifications**  
+when you follow a broadcaster, notifications are enabled for them by default. if you only want to follow someone without getting notifications then untick the option in the "following" sub-menu.  
+to turn off notifications completely, select the option in the "settings" sub-menu  
+
 **update_frequency**  
 this needs to be changed in the settings.json file for now, just remember to reload the script after making any changes there.   
 set to 0 to turn off checking for new broadcasts. the lowest it can be set to is 1 second  
@@ -46,4 +50,3 @@ set to 0 to turn off checking for new broadcasts. the lowest it can be set to is
 
 TODO:   
 - download the post history for the broadcasters you are following  
-- choose which broadcasters you want notifications for  

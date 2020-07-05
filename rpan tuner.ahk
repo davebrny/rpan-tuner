@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.6
+version     = 2.7
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -86,6 +86,20 @@ return
 
 
 show_main_menu:
+loop, % live_total
+    live_string .= "|" live.data[a_index].post.authorInfo.name "|"
+
+menu, following_menu, add, follow new broadcaster, follow_new_broadcaster
+menu, following_menu, add
+for broadcaster in a.following
+    {
+    menu, following_menu, add, % broadcaster, follow_new_broadcaster
+    broadcaster_submenu(broadcaster)
+    if (a.following[broadcaster].show_notifications = true)  ; add checkbox
+        menu, following_menu, check, % broadcaster
+    menu, following_menu, add, % broadcaster, % ":" broadcaster "_menu"
+    }
+
 menu, view_menu, add, &live, select_view
 menu, view_menu, % (selected_view = "&live" ? "check" : "unCheck"), &live
 menu, view_menu, add, &following (live), select_view
@@ -121,19 +135,17 @@ menu, help_menu, add, github page, github_page
 if (lv_getNext(0))  ; if a row is selected
     {
     lv_getText(row_broadcaster, lv_getNext(0), 1)  ; get name
-    menu, main_menu, add, % "open " row_broadcaster, menu_broadcaster_open
-    if (a.following.hasKey(row_broadcaster))
-         menu, main_menu, add, % "unfollow " row_broadcaster, menu_broadcaster_follow
-    else menu, main_menu, add, % "follow "   row_broadcaster, menu_broadcaster_follow 
+    broadcaster_submenu(row_broadcaster)
+    menu, main_menu, add, % row_broadcaster, % ":" row_broadcaster "_menu"
     menu, main_menu, add,  
     }
 
-menu, main_menu, add, follow new broadcaster, follow_new_broadcaster
 sec := a_now
 sec -= last_update, seconds  ; get seconds elapsed since last update
 time_elapsed := (floor(sec/60) < 1 ? "" : floor(sec/60) "m ") . mod(sec, 60) "s"  ; format to 1m 23s
 menu, main_menu, add, &update broadcasts (updated %time_elapsed% ago), update_broadcasts
 menu, main_menu, add  ; separator
+menu, main_menu, add, &following, :following_menu
 menu, main_menu, add, &view, :view_menu
 menu, main_menu, add, &window, :window_menu
 menu, main_menu, add, &settings, :settings_menu
@@ -141,13 +153,38 @@ menu, main_menu, add
 menu, main_menu, add, help, :help_menu
 
 menu, main_menu, show
-loop, parse, % "main|view|window|settings|help", |
+loop, parse, % "main|following|view|window|settings|help", |
     menu, % a_loopField "_menu", deleteAll
 return
 
 
 
-menu_broadcaster_open:  ; (right-click menu or enter)
+broadcaster_submenu(broadcaster) {
+    global a, live_string
+    menu_name := broadcaster "_menu"
+    try menu, % menu_name, deleteAll
+
+    if inStr(live_string, "|" broadcaster "|")  ; if live
+        menu, % menu_name, add, % "open broadcast", open_live_broadcast
+    menu, % menu_name, add, % "open profile", open_profile
+    
+    if (a.following.hasKey(broadcaster))
+        menu, % menu_name, add, notifcations, toggle_notifications
+
+    if (a.following[broadcaster].show_notifications = "")
+        a.following[broadcaster].show_notifications := true  ; initialise if key hasnt been created
+    if (a.following[broadcaster].show_notifications = true)  ; if following
+    and (a.following.hasKey(broadcaster))                    ; and already added
+        menu, % menu_name, check, notifcations
+
+    menu, % menu_name, add
+    if (a.following.hasKey(broadcaster))
+         menu, % menu_name, add, % "unfollow", menu_broadcaster_follow
+    else menu, % menu_name, add, % "follow"  , menu_broadcaster_follow
+}
+
+
+menu_broadcaster_open:  ; (enter key)
 if (lv_getNext(0))  ; if a row is selected
     {
     lv_getText(listview_url, lv_getNext(0), 6)  ; get url
@@ -157,18 +194,16 @@ return
 
 
 menu_broadcaster_follow:
-split := strSplit(a_thisMenuItem, a_space)
-if inStr(split[1], "unfollow")
+broadcaster := strReplace(a_thisMenu, "_menu", "")
+if (a_thisMenuItem = "unfollow")
     {
-    lv_modify(lv_getNext(0), "-check")
-    a.following.delete( trim(split[2]) )  ; remove key
-    if (selected_view = "&following (live)")
-        update_listView(selected_view)    ; refresh listView
+    a.following.delete(broadcaster)  ; remove key
+    update_listView(selected_view)   ; refresh listView
     }
 else
     {
     lv_modify(lv_getNext(1), "check")
-    a.following[ trim(split[2]) ] := {}    ; add key
+    a.following[broadcaster] := {}    ; add key
     lv_getText(listview_url, lv_getNext(0), 6)
     if !inStr(previous_broadcasts, listview_url)
         previous_broadcasts .= listview_url "`n"
@@ -219,6 +254,12 @@ return
 toggle_settings:
 menu_item := strReplace(a_thisMenuItem, " ", "_")
 a[menu_item] := (a[menu_item] = 1 ? 0 : 1)
+return
+
+
+toggle_notifications:
+menu_item := strReplace(a_thisMenu, "_menu", "")
+a.following[menu_item].show_notifications := (a.following[menu_item].show_notifications = 1 ? 0 : 1)
 return
 
 
@@ -282,7 +323,7 @@ show_live_menu:
 if (live_total = "")
     return
 
-menu, live_menu, add, live broadcasts:, open_broadcast
+menu, live_menu, add, live broadcasts:, open_live_broadcast
 menu, live_menu, disable, live broadcasts:
 menu, live_menu, add ; separator
 
@@ -290,7 +331,7 @@ loop, % live_total
     {
     this_broadcaster := live.data[a_index].post.authorInfo.name
     if (a.following.hasKey(this_broadcaster))  ; if following
-        menu, live_menu, add, % this_broadcaster, open_broadcast
+        menu, live_menu, add, % this_broadcaster, open_live_broadcast
     }
 
 channel_list := ""
@@ -300,8 +341,8 @@ loop, % live_total
     this_channel     := live.data[a_index].post.subreddit.name
     if (this_broadcaster = "") or (this_channel = "")
         continue
-    menu, all_menu, add, % this_broadcaster, open_broadcast
-    menu, % this_channel, add, % this_broadcaster, open_broadcast
+    menu, all_menu, add, % this_broadcaster, open_live_broadcast
+    menu, % this_channel, add, % this_broadcaster, open_live_broadcast
     ++%this_channel%_count
     if !inStr(channel_list, this_channel)  ; if not already in list
         channel_list .= (channel_list ? "|" : "") . this_channel
@@ -327,7 +368,7 @@ return
 
 
 
-open_broadcast:
+open_live_broadcast:
 loop, % live_total
     {
     if (live.data[a_index].post.authorInfo.name = a_thisMenuItem)
@@ -336,6 +377,11 @@ loop, % live_total
         break
         }
     }
+return
+
+
+open_profile:
+run, % "https://www.reddit.com/user/" . strReplace(a_thisMenu, "_menu", "")
 return
 
 
@@ -395,8 +441,12 @@ check_live_following() {
         if (a.following.hasKey(this_broadcaster) = false)
             continue ; if not following
 
+        if (a.following[this_broadcaster].show_notifications = "")
+            a.following[this_broadcaster].show_notifications := true   ; initialise if key hasnt been created
+
         this_url := live.data[a_index].post.outboundLink.url
-        if !inStr(previous_broadcasts, this_url) ; if not in previous list
+        if !inStr(previous_broadcasts, this_url)                       ; if not in previous list
+        and (a.following[this_broadcaster].show_notifications = true)  ; if notifications enabled for broadcaster
             {
             new_broadcast .= (new_broadcast ? ", " : "") . this_broadcaster
             previous_broadcasts .= this_url "`n"
