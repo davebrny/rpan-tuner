@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.7
+version     = 2.7.1
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -67,17 +67,23 @@ if (updating != true)
     updating := true
     sb_setText("tuning...", 1)
 
-    json_data := download("https://strapi.reddit.com/broadcasts")
+    json_data := download_json()
     if (json_data)
+        {
         live := JSON.Load(json_data)
-    live_total := (live.data[1].total_streams - 1)
-    check_live_following()
-    update_listView(selected_view)
+        live_total := (live.data[1].total_streams - 1)
+        check_live_following()
+        update_listView(selected_view)
+        sb_setText(live_total " live", 1)
+        sb_setText(" " live_following_string(), 2)
+        }
+    else
+        {
+        sb_setText("off-air", 1)
+        sb_setText("the snoos are sleeping. try again later", 2)
+        }
 
-    if (json_data)
-         sb_setText(live_total " live", 1)
-    else sb_setText("off-air", 1)
-    sb_setText(" " live_following_string(), 2)
+    json_data := ""
     last_update := a_now
     updating := false
     }
@@ -416,6 +422,18 @@ save_json(object, path) {
     file := fileOpen(path, "w `n")
     file.write(JSON.Dump(object, , 4))
     file.close()
+}
+
+
+download_json() {
+    loop,
+        {
+        response := download("https://strapi.reddit.com/broadcasts")
+        if (inStr(response, "success"))
+            return response
+        sleep 200
+        }
+    until (a_index >= 20)
 }
 
 
