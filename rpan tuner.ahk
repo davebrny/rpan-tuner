@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.7.1
+version     = 2.8
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -18,14 +18,22 @@ hotkey, m, show_main_menu
 hotkey, l, show_live_menu
 hotkey, t, toggle_on_top
 
-#include, <JSON>  ; load json
+off_air := []
+
+#include, <JSON>
 fileRead, contents, settings.json
 a := JSON.Load(contents)
+contents := ""
+
+if (a.default_view = "")
+    a.default_view := "&live"
+selected_view := a.default_view
 
 if (a.update_frequency >= 1)
     setTimer, time_check, 15000  ; check every 15 seconds
 
 goSub, load_gui
+goSub, update_broadcasts
 
 return ; end of auto-execute ---------------------------------------------------
 
@@ -44,7 +52,7 @@ lv_modifyCol(5, "170")        ; time
 lv_modifyCol(6, "0")          ; url (hidden)
 
 gui font, s9, fixedSys
-gui add, statusBar, gStatusBar_click, ? live
+gui add, statusBar, gStatusBar_click, 
 sb_setParts("62")
 gui +resize +lastFound
 gui show, w550 h255, rpan tuner
@@ -54,9 +62,6 @@ if (a.gui_size.maxIndex())    ; set x, y, width and heigth
     winMove, % "ahk_id " gui_id, , % a.gui_size.1, % a.gui_size.2, % a.gui_size.3, % a.gui_size.4
 if (a.always_on_top = true)
     winSet, alwaysOnTop, on, % "ahk_id " gui_id
-
-selected_view := "&live"
-goSub, update_broadcasts
 return
 
 
@@ -65,7 +70,7 @@ update_broadcasts:
 if (updating != true)
     {
     updating := true
-    sb_setText("tuning...", 1)
+    status_bar("tuning...", "")
 
     json_data := download_json()
     if (json_data)
@@ -74,15 +79,9 @@ if (updating != true)
         live_total := (live.data[1].total_streams - 1)
         check_live_following()
         update_listView(selected_view)
-        sb_setText(live_total " live", 1)
-        sb_setText(" " live_following_string(), 2)
-        }
-    else
-        {
-        sb_setText("off-air", 1)
-        sb_setText("the snoos are sleeping. try again later", 2)
         }
 
+    status_bar(live_total " live", live_following_string())
     json_data := ""
     last_update := a_now
     updating := false
@@ -101,15 +100,15 @@ for broadcaster in a.following
     {
     menu, following_menu, add, % broadcaster, follow_new_broadcaster
     broadcaster_submenu(broadcaster)
-    if (a.following[broadcaster].show_notifications = true)  ; add checkbox
+    if (a.following[broadcaster].show_notifications != false)  ; add checkbox
         menu, following_menu, check, % broadcaster
     menu, following_menu, add, % broadcaster, % ":" broadcaster "_menu"
     }
 
 menu, view_menu, add, &live, select_view
-menu, view_menu, % (selected_view = "&live" ? "check" : "unCheck"), &live
-menu, view_menu, add, &following (live), select_view
-menu, view_menu, % (selected_view = "&following (live)" ? "check" : "unCheck"), &following (live)
+menu, view_menu, add, &following, select_view
+menu, view_menu, add, &following (live only), select_view
+menu, view_menu, check, % selected_view
 
 menu, window_menu, add, &always-on-top, toggle_on_top
 menu, window_menu, % (a.always_on_top = true ? "check" : "unCheck"), &always-on-top
@@ -120,8 +119,14 @@ menu, window_menu, add
 menu, window_menu, add, default, resize_window
 menu, window_menu, add, mini   , resize_window
 
+menu, default_view_menu, add, &live, select_default_view
+menu, default_view_menu, add, &following, select_default_view
+menu, default_view_menu, add, &following (live only), select_default_view
+menu, default_view_menu, check, % a.default_view
+menu, settings_menu, add, default view, :default_view_menu
+
 menu, settings_menu, add, show notifications, toggle_settings
-menu, settings_menu, % (a.show_notifications = true ? "check" : "unCheck"), show notifications
+menu, settings_menu, % (a.show_notifications != false ? "check" : "unCheck"), show notifications
 menu, settings_menu, add, &always-on-top, toggle_on_top
 menu, settings_menu, % (a.always_on_top = true ? "check" : "unCheck"), &always-on-top
 menu, settings_menu, add, run at startup, run_at_startup
@@ -159,7 +164,7 @@ menu, main_menu, add
 menu, main_menu, add, help, :help_menu
 
 menu, main_menu, show
-loop, parse, % "main|following|view|window|settings|help", |
+loop, parse, % "main|following|view|window|settings|default_view|help", |
     menu, % a_loopField "_menu", deleteAll
 return
 
@@ -177,11 +182,13 @@ broadcaster_submenu(broadcaster) {
     if (a.following.hasKey(broadcaster))
         menu, % menu_name, add, notifcations, toggle_notifications
 
-    if (a.following[broadcaster].show_notifications = "")
-        a.following[broadcaster].show_notifications := true  ; initialise if key hasnt been created
-    if (a.following[broadcaster].show_notifications = true)  ; if following
-    and (a.following.hasKey(broadcaster))                    ; and already added
+    if (a.following[broadcaster].show_notifications != false)  ; if following
+    and (a.following.hasKey(broadcaster))                      ; and already added
         menu, % menu_name, check, notifcations
+    
+    menu, % menu_name, add, download off-air broadcasts, toggle_download_off_air
+    if (a.following[broadcaster].download_off_air = true)
+        menu, % menu_name, check, download off-air broadcasts
 
     menu, % menu_name, add
     if (a.following.hasKey(broadcaster))
@@ -214,7 +221,7 @@ else
     if !inStr(previous_broadcasts, listview_url)
         previous_broadcasts .= listview_url "`n"
     }
-sb_setText(" " live_following_string(), 2)
+status_bar(live_total " live", live_following_string())
 save_json(a, "settings.json")
 return
 
@@ -238,7 +245,9 @@ select_view:
 selected_view := a_thisMenuItem
 update_listView(selected_view)
 return
-
+select_default_view:
+a.default_view := a_thisMenuItem
+return
 
 toggle_on_top:
 winSet, alwaysOnTop, toggle, % "ahk_id " gui_id
@@ -264,8 +273,24 @@ return
 
 
 toggle_notifications:
-menu_item := strReplace(a_thisMenu, "_menu", "")
-a.following[menu_item].show_notifications := (a.following[menu_item].show_notifications = 1 ? 0 : 1)
+broadcaster := strReplace(a_thisMenu, "_menu", "")
+if (a.following[broadcaster].show_notifications != false)
+     a.following[broadcaster].show_notifications := false
+else a.following[broadcaster].delete("show_notifications")  ; remove key
+return
+
+
+toggle_download_off_air:
+broadcaster := strReplace(a_thisMenu, "_menu", "")
+if (a.following[broadcaster].download_off_air = true)
+    a.following[broadcaster].download_off_air := false
+else
+    {
+    a.following[broadcaster].download_off_air := true
+    download_off_air(broadcaster)
+    if inStr(selected_view, "&following")
+        update_listView(selected_view)
+    }
 return
 
 
@@ -277,7 +302,6 @@ return
 github_page:
 run, https://github.com/davebrny/rpan-tuner
 return
-
 
 
 listView_click:
@@ -300,10 +324,10 @@ if (a_guiEvent == "I") and (errorLevel = "c")  ;;;; checkbox clicked
     else if (errorLevel == "c") and (a.following.hasKey(broadcaster))     ; if unchecked
         {
         a.following.delete(broadcaster)    ; remove key
-        if (selected_view = "&following (live)")
+        if inStr(selected_view, "&following")
             update_listView(selected_view) ; refresh listView
         }
-    sb_setText(" " live_following_string(), 2)
+    status_bar(live_total " live", live_following_string())
     save_json(a, "settings.json")
     }
 return
@@ -375,9 +399,12 @@ return
 
 
 open_live_broadcast:
+if (a_thisMenu = "live_menu")
+     broadcaster := a_thisMenuItem
+else broadcaster := strReplace(a_thisMenu, "_menu", "")
 loop, % live_total
     {
-    if (live.data[a_index].post.authorInfo.name = a_thisMenuItem)
+    if (live.data[a_index].post.authorInfo.name = broadcaster)
         {
         run, % live.data[a_index].post.outboundLink.url  ; open url
         break
@@ -425,6 +452,18 @@ save_json(object, path) {
 }
 
 
+status_bar(section_1, section_2) {
+    global live, live_total
+    if (live) and (live_total = "")
+        {
+        section_1 := "off-air"
+        section_2 := "the snoos are sleeping. try again later"
+        }
+    sb_setText(section_1, 1)
+    sb_setText(" " section_2, 2)
+}
+
+
 download_json() {
     loop,
         {
@@ -459,9 +498,6 @@ check_live_following() {
         if (a.following.hasKey(this_broadcaster) = false)
             continue ; if not following
 
-        if (a.following[this_broadcaster].show_notifications = "")
-            a.following[this_broadcaster].show_notifications := true   ; initialise if key hasnt been created
-
         this_url := live.data[a_index].post.outboundLink.url
         if !inStr(previous_broadcasts, this_url)                       ; if not in previous list
         and (a.following[this_broadcaster].show_notifications = true)  ; if notifications enabled for broadcaster
@@ -477,7 +513,7 @@ check_live_following() {
 
 
 update_listView(selected_view) {
-    global a, live, live_total
+    global a, live, live_total, off_air, off_air_downloaded
     setBatchLines, -1  ; run at full speed
     guiControl, -redraw, listView
     lv_delete()
@@ -488,7 +524,7 @@ update_listView(selected_view) {
         this_broadcaster := live.data[a_index].post.authorInfo.name
         if (a.following.hasKey(this_broadcaster))   ; if following
             options := "check"
-        else if (selected_view = "&following (live)") ; and not following
+        else if inStr(selected_view, "&following")  ; if not following and viewing either following list
             continue
 
         title       := live.data[a_index].post.title
@@ -501,9 +537,76 @@ update_listView(selected_view) {
             lv_add(options, this_broadcaster, title, channel, global_rank, start_time, url)
         }
 
-    lv_modifyCol(4, "sort")  ; sort by rank
+    if (selected_view = "&following")
+        {
+        if (off_air_downloaded != true)
+            {
+            download_off_air()
+            if (off_air.maxIndex())
+                off_air_downloaded := true
+            }
+
+        loop, % off_air.maxIndex()
+            {
+            broadcaster := off_air[a_index].1
+            title       := off_air[a_index].2
+            channel     := off_air[a_index].3
+            timestamp   := off_air[a_index].4
+            url         := off_air[a_index].5
+            lv_add("check", broadcaster, title, channel, , timestamp, url)
+            }
+
+        lv_modifyCol(5, "sortDesc")  ; sort by recent
+        }
+    else lv_modifyCol(4, "sort")      ; sort by rank
+
     guiControl, +redraw, listView
     setBatchLines, 10ms
+}
+
+
+download_off_air(broadcaster_list="") {
+    global a, off_air
+    if (broadcaster_list = "")
+        {
+        for broadcaster in a.following
+            {
+            if (a.following[broadcaster].download_off_air = true)
+                broadcaster_list .= (broadcaster_list ? "|" : "") . broadcaster
+            }
+        }
+
+    loop, parse, broadcaster_list, |
+        {
+        this_broadcaster := a_loopField
+        sb_setText("downloading " this_broadcaster "...", 2)
+        xml := download("https://www.reddit.com/user/" this_broadcaster "/submitted.rss")
+        if (xml)
+            {
+            strReplace(xml, "<entry>", "", post_count)
+            loop, % post_count
+                {
+                entry := xml_element(xml, "<entry>", "</entry>", a_index)
+                if inStr(entry, "rpan/r")  ; if post is an rpan broadcast
+                    {
+                    title     := xml_element(entry, "<title>", "</title>")
+                    channel   := xml_element(entry, "<category term=""", """")
+                    timestamp := xml_element(entry, "<updated>", "</updated>")
+                    timestamp := subStr(timestamp, 1, 19)  ; remove +00:00 from timestamp
+                    link      := xml_element(entry, "<link href=""", """")
+                    off_air.push([ this_broadcaster, title, channel, timestamp, link ])
+                    }
+                }
+            }
+        }
+    status_bar(live_total " live", live_following_string())
+}
+xml_element(xml, start, end, index="1") {
+    stringGetPos, pos, xml, % start, L%index%
+    stringMid, str_right, xml, pos + 1 + strLen(start)
+    stringGetPos, pos, str_right, % end
+    stringMid, value, str_right, pos, , L
+    return value
 }
 
 
