@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.8.1
+version     = 2.8.2
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -19,6 +19,7 @@ hotkey, l, show_live_menu
 hotkey, t, toggle_on_top
 
 off_air := []
+view_menu_text := "&all live|live (&following only)|live (&following only) && &off-air"
 
 #include, <JSON>
 fileRead, contents, settings.json
@@ -26,7 +27,9 @@ a := JSON.Load(contents)
 contents := ""
 
 if (a.default_view = "")
-    a.default_view := "&live"
+    a.default_view := "&all live"
+if !inStr("|" view_menu_text "|", "|" a.default_view "|")
+    a.default_view := "&all live"  ; reset if updating script to v2.9 with new menu text
 selected_view := a.default_view
 
 if (a.update_frequency >= 1)
@@ -105,9 +108,8 @@ for broadcaster in a.following
     menu, following_menu, add, % broadcaster, % ":" broadcaster "_menu"
     }
 
-menu, view_menu, add, &live, select_view
-menu, view_menu, add, &following, select_view
-menu, view_menu, add, &following (live only), select_view
+loop, parse, % view_menu_text, |
+    menu, view_menu, add, % a_loopField, select_view
 menu, view_menu, check, % selected_view
 
 menu, window_menu, add, &always-on-top, toggle_on_top
@@ -119,9 +121,8 @@ menu, window_menu, add
 menu, window_menu, add, default, resize_window
 menu, window_menu, add, mini   , resize_window
 
-menu, default_view_menu, add, &live, select_default_view
-menu, default_view_menu, add, &following, select_default_view
-menu, default_view_menu, add, &following (live only), select_default_view
+loop, parse, % view_menu_text, |
+    menu, default_view_menu, add, % a_loopField, select_default_view
 menu, default_view_menu, check, % a.default_view
 menu, settings_menu, add, default view, :default_view_menu
 
@@ -151,12 +152,12 @@ if (lv_getNext(0))  ; if a row is selected
     menu, main_menu, add,  
     }
 
+menu, main_menu, add, &broadcasters, :following_menu
 sec := a_now
 sec -= last_update, seconds  ; get seconds elapsed since last update
 time_elapsed := (floor(sec/60) < 1 ? "" : floor(sec/60) "m ") . mod(sec, 60) "s"  ; format to 1m 23s
 menu, main_menu, add, &update broadcasts (updated %time_elapsed% ago), update_broadcasts
 menu, main_menu, add  ; separator
-menu, main_menu, add, &following, :following_menu
 menu, main_menu, add, &view, :view_menu
 menu, main_menu, add, &window, :window_menu
 menu, main_menu, add, &settings, :settings_menu
@@ -245,9 +246,12 @@ select_view:
 selected_view := a_thisMenuItem
 update_listView(selected_view)
 return
+
+
 select_default_view:
 a.default_view := a_thisMenuItem
 return
+
 
 toggle_on_top:
 winSet, alwaysOnTop, toggle, % "ahk_id " gui_id
@@ -288,7 +292,7 @@ else
     {
     a.following[broadcaster].download_off_air := true
     download_off_air(broadcaster)
-    if inStr(selected_view, "&following")
+    if inStr(selected_view, "following")
         update_listView(selected_view)
     }
 return
@@ -324,7 +328,7 @@ if (a_guiEvent == "I") and (errorLevel = "c")  ;;;; checkbox clicked
     else if (errorLevel == "c") and (a.following.hasKey(broadcaster))     ; if unchecked
         {
         a.following.delete(broadcaster)    ; remove key
-        if inStr(selected_view, "&following")
+        if inStr(selected_view, "following")
             update_listView(selected_view) ; refresh listView
         }
     status_bar(live_total " live", live_following_string())
@@ -389,7 +393,8 @@ loop, parse, % channel_list, |
     var_name := a_loopfield "_count"
     channel_count := %var_name%  ; get value stored in variable name
     %a_loopfield%_count := "" ; reset
-    menu, live_menu, add, % a_loopfield . a_tab "(" channel_count ")", :%a_loopfield%
+    channel_name := StrReplace(a_loopfield, "_live_menu")
+    menu, live_menu, add, % channel_name . a_tab "(" channel_count ")", :%a_loopfield%
     }
 
 menu, live_menu, show
@@ -525,7 +530,7 @@ update_listView(selected_view) {
         this_broadcaster := live.data[a_index].post.authorInfo.name
         if (a.following.hasKey(this_broadcaster))   ; if following
             options := "check"
-        else if inStr(selected_view, "&following")  ; if not following and viewing either following list
+        else if inStr(selected_view, "following")  ; if not following and viewing either following list
             continue
 
         title       := live.data[a_index].post.title
@@ -538,7 +543,7 @@ update_listView(selected_view) {
             lv_add(options, this_broadcaster, title, channel, global_rank, start_time, url)
         }
 
-    if (selected_view = "&following")
+    if inStr(selected_view, "off-air")
         {
         if (off_air_downloaded != true)
             {

@@ -17,7 +17,7 @@ the .exe is the compiled/self-contained version of the .ahk script that will run
 
 - double click on a broadcast in the list to open it in your browser  
 - click the checkbox beside a broadcasters name to get desktop notifications for them  
-    + to follow a broadcaster that isnt currently live, select "following/follow new" in the main menu 
+    + to follow a broadcaster that isnt currently live, select "broadcasters / follow new" in the main menu 
 - use  <kbd>ctrl</kbd> + <kbd>r</kbd> to manually update broadcasts. (it updates every 2 minutes by default)  
 &nbsp;
 
@@ -32,10 +32,13 @@ the first or underlined letter in each item can be used to select it. (e.g. pres
 
 
 **views**  
-you can choose between "live", "following" and "following (live only)". 
-"following" shows live broadcasts for the people you are following but also off-air broadcasts if you choose to download them.  
+choose between one of the following:  
 
-> it takes a second to download each broadcaster's post history so its turned off by default. to enable it, open the "following" sub-menu and select "download off-air broadcasts" for each broadcaster you want  
+- all live  
+- live (following only)  
+- live (following only) & off-air  
+
+> the "off-air" option shows live broadcasts for the people you are following and also off-air broadcasts if you choose to download them. it takes a second to download each broadcaster's post history which is why its turned off by default. to enable it, open the "broadcasters" sub-menu and select "download off-air broadcasts" for each broadcaster you want  
 &nbsp;
 
 
