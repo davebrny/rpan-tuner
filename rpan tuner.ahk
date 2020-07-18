@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.8
+version     = 2.8.1
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -371,17 +371,18 @@ loop, % live_total
     this_channel     := live.data[a_index].post.subreddit.name
     if (this_broadcaster = "") or (this_channel = "")
         continue
-    menu, all_menu, add, % this_broadcaster, open_live_broadcast
-    menu, % this_channel, add, % this_broadcaster, open_live_broadcast
-    ++%this_channel%_count
-    if !inStr(channel_list, this_channel)  ; if not already in list
-        channel_list .= (channel_list ? "|" : "") . this_channel
+    var_name := this_channel "_live_menu"
+    menu, all_live_menu, add, % this_broadcaster, open_live_broadcast
+    menu, % var_name, add, % this_broadcaster, open_live_broadcast
+    ++%var_name%_count
+    if !inStr(channel_list, var_name)  ; if not already in list
+        channel_list .= (channel_list ? "|" : "") . var_name
     }
 
 if (live_following_string())
     menu, live_menu, add, ; separator
 
-menu, live_menu, add, % "&all " a_tab "(" live_total ")", :all_menu
+menu, live_menu, add, % "&all " a_tab "(" live_total ")", :all_live_menu
 menu, live_menu, add
 loop, parse, % channel_list, |
     {
@@ -392,16 +393,16 @@ loop, parse, % channel_list, |
     }
 
 menu, live_menu, show
-loop, parse, % "live_menu|all_menu|" . channel_list, |
+loop, parse, % "live_menu|all_live_menu|" . channel_list, |
     menu, % a_loopField, deleteAll
 return
 
 
 
 open_live_broadcast:
-if (a_thisMenu = "live_menu")
+if (subStr(a_thisMenu, -8, 9) = "live_menu")
      broadcaster := a_thisMenuItem
-else broadcaster := strReplace(a_thisMenu, "_menu", "")
+else broadcaster := strReplace(a_thisMenu, "_menu", "") 
 loop, % live_total
     {
     if (live.data[a_index].post.authorInfo.name = broadcaster)
