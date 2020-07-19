@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.9
+version     = 2.9.1
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -465,7 +465,7 @@ status_bar(section_1, section_2) {
 download_json() {
     loop,
         {
-        response := download("https://strapi.reddit.com/broadcasts")
+        response := download("https://strapi.reddit.com/broadcasts", access_token())
         if (inStr(response, "success"))
             return response
         sleep 200
@@ -474,11 +474,31 @@ download_json() {
 }
 
 
-download(url) {
+access_token() {
+    static access_token, expired_time
+    if (a_now > expired_time)  ; get new token
+        {
+        html := download("https://www.reddit.com")
+        if inStr(html, "accessToken"":""")
+            {
+            access_token := get_text(html, "accessToken"":""", """")
+            expire_ms    := get_text(html, "expiresIn"":", ",")
+            expired_time := a_now
+            expired_time += % (expire_ms / 1000), s  ; add seconds  
+            }
+        else access_token := ""
+        }
+    return access_token
+}
+
+
+download(url, token="") {
     setBatchLines, -1  ; run at full speed
     comObjError(false)
     request := comObjCreate("WinHttp.WinHttpRequest.5.1")
     request.open("GET", url)
+    if (token) and inStr(url, "strapi.reddit.com")
+        request.SetRequestHeader("Authorization", "Bearer " token)
     request.send()
     while (request.responseText = "") and (a_index <= 5)
         sleep 200
@@ -585,22 +605,24 @@ download_off_air(broadcaster_list="") {
             strReplace(xml, "<entry>", "", post_count)
             loop, % post_count
                 {
-                entry := xml_element(xml, "<entry>", "</entry>", a_index)
+                entry := get_text(xml, "<entry>", "</entry>", a_index)
                 if inStr(entry, "rpan/r")  ; if post is an rpan broadcast
                     {
-                    title     := xml_element(entry, "<title>", "</title>")
-                    channel   := xml_element(entry, "<category term=""", """")
-                    timestamp := xml_element(entry, "<updated>", "</updated>")
-                    link      := xml_element(entry, "<link href=""", """")
+                    title     := get_text(entry, "<title>", "</title>")
+                    channel   := get_text(entry, "<category term=""", """")
+                    timestamp := get_text(entry, "<updated>", "</updated>")
+                    link      := get_text(entry, "<link href=""", """")
                     off_air.push([ this_broadcaster, title, channel, timestamp, link ])
                     }
                 }
             }
         }
 }
-xml_element(xml, start, end, index="1") {
-    stringGetPos, pos, xml, % start, L%index%
-    stringMid, str_right, xml, pos + 1 + strLen(start)
+
+
+get_text(string, start, end, index="1") {
+    stringGetPos, pos, string, % start, L%index%
+    stringMid, str_right, string, pos + 1 + strLen(start)
     stringGetPos, pos, str_right, % end
     stringMid, value, str_right, pos, , L
     return value
