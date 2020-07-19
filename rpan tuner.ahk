@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.8.2
+version     = 2.9
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -17,6 +17,7 @@ hotkey, enter, menu_broadcaster_open
 hotkey, m, show_main_menu
 hotkey, l, show_live_menu
 hotkey, t, toggle_on_top
+hotkey, w, toggle_window_size
 
 off_air := []
 view_menu_text := "&all live|live (&following only)|live (&following only) && &off-air"
@@ -45,7 +46,7 @@ return ; end of auto-execute ---------------------------------------------------
 
 load_gui:
 gui font, s10, fixedSys
-gui add, listView, x10 y10 w480 h260 checked altSubmit -multi vlistView gListView_click
+gui add, listView, x10 y10 w480 h260 altSubmit -multi vlistView gListView_click
                  , broadcaster|title|channel|rank|time|url
 lv_modifyCol(1, "135")        ; broadcaster
 lv_modifyCol(2, "300")        ; title
@@ -53,6 +54,11 @@ lv_modifyCol(3, "130")        ; channel
 lv_modifyCol(4, "42 integer") ; rank
 lv_modifyCol(5, "170")        ; time
 lv_modifyCol(6, "0")          ; url (hidden)
+
+image_list_id := il_create(2)
+lv_setImageList(image_list_id)
+il_add(image_list_id, "shell32.dll", 161)  ; people icon
+il_add(image_list_id, "shell32.dll", 55)   ; paper icon
 
 gui font, s9, fixedSys
 gui add, statusBar, gStatusBar_click, 
@@ -81,7 +87,7 @@ if (updating != true)
         live := JSON.Load(json_data)
         live_total := (live.data[1].total_streams - 1)
         check_live_following()
-        update_listView(selected_view)
+        update_listView()
         }
 
     status_bar(live_total " live", live_following_string())
@@ -210,18 +216,15 @@ return
 menu_broadcaster_follow:
 broadcaster := strReplace(a_thisMenu, "_menu", "")
 if (a_thisMenuItem = "unfollow")
-    {
     a.following.delete(broadcaster)  ; remove key
-    update_listView(selected_view)   ; refresh listView
-    }
 else
     {
-    lv_modify(lv_getNext(1), "check")
     a.following[broadcaster] := {}    ; add key
     lv_getText(listview_url, lv_getNext(0), 6)
     if !inStr(previous_broadcasts, listview_url)
         previous_broadcasts .= listview_url "`n"
     }
+update_listView()   ; refresh listView
 status_bar(live_total " live", live_following_string())
 save_json(a, "settings.json")
 return
@@ -244,7 +247,8 @@ return
 
 select_view:
 selected_view := a_thisMenuItem
-update_listView(selected_view)
+update_listView()
+status_bar(live_total " live", live_following_string())
 return
 
 
@@ -259,6 +263,14 @@ winGet, ex_style, exStyle, % "ahk_id " gui_id
 if (ex_style & 0x8)    ; 0x8 is WS_EX_TOPMOST
      a.always_on_top := true
 else a.always_on_top := false
+return
+
+
+toggle_window_size:
+winGetPos, , , , h, % "ahk_id " gui_id  ; get window height
+if (h <= 71)  ; if in mini mode
+     winMove, % "ahk_id " gui_id, , , , 700, 350
+else winMove, % "ahk_id " gui_id, , , , 480, 71
 return
 
 
@@ -293,7 +305,7 @@ else
     a.following[broadcaster].download_off_air := true
     download_off_air(broadcaster)
     if inStr(selected_view, "following")
-        update_listView(selected_view)
+        update_listView()
     }
 return
 
@@ -313,26 +325,6 @@ if (a_guiEvent = "DoubleClick")  ;;;; open row url
     {
     lv_getText(listview_url, a_eventInfo, 6)
     run, % listview_url
-    }
-
-if (a_guiEvent == "I") and (errorLevel = "c")  ;;;; checkbox clicked
-    {
-    lv_getText(broadcaster, a_eventInfo, 1)
-    if (errorLevel == "C") and (a.following.hasKey(broadcaster) = false)  ; if checked
-        {
-        a.following[broadcaster] := {}    ; add key
-        lv_getText(listview_url, a_eventInfo, 6)
-        if !inStr(previous_broadcasts, listview_url)
-            previous_broadcasts .= listview_url "`n"
-        }
-    else if (errorLevel == "c") and (a.following.hasKey(broadcaster))     ; if unchecked
-        {
-        a.following.delete(broadcaster)    ; remove key
-        if inStr(selected_view, "following")
-            update_listView(selected_view) ; refresh listView
-        }
-    status_bar(live_total " live", live_following_string())
-    save_json(a, "settings.json")
     }
 return
 
@@ -518,29 +510,30 @@ check_live_following() {
 }
 
 
-update_listView(selected_view) {
-    global a, live, live_total, off_air, off_air_downloaded
+update_listView() {
+    global a, live, live_total, selected_view, off_air, off_air_downloaded
     setBatchLines, -1  ; run at full speed
     guiControl, -redraw, listView
     lv_delete()
 
     loop, % live_total
         {
-        options := ""
         this_broadcaster := live.data[a_index].post.authorInfo.name
-        if (a.following.hasKey(this_broadcaster))   ; if following
-            options := "check"
-        else if inStr(selected_view, "following")  ; if not following and viewing either following list
-            continue
+        if (a.following.hasKey(this_broadcaster) = false) and inStr(selected_view, "following")
+            continue ; if not following and viewing either following list
+
+        if (selected_view = "&all live") and (a.following.hasKey(this_broadcaster))
+             lv_icon := "icon1"
+        else lv_icon := "icon0"
 
         title       := live.data[a_index].post.title
         channel     := live.data[a_index].post.subreddit.name
         global_rank := live.data[a_index].global_rank
         sub_rank    := live.data[a_index].rank_in_subreddit
         url         := live.data[a_index].post.outboundLink.url
-        start_time  := subStr(live.data[a_index].post.createdAt, 1, 19) ; remove +00:00 from timestamp
+        start_time  := live.data[a_index].post.createdAt
         if (this_broadcaster)
-            lv_add(options, this_broadcaster, title, channel, global_rank, start_time, url)
+            lv_add(lv_icon, this_broadcaster, title, channel, global_rank, start_time, url)
         }
 
     if inStr(selected_view, "off-air")
@@ -559,7 +552,7 @@ update_listView(selected_view) {
             channel     := off_air[a_index].3
             timestamp   := off_air[a_index].4
             url         := off_air[a_index].5
-            lv_add("check", broadcaster, title, channel, , timestamp, url)
+            lv_add("icon2", broadcaster, title, channel, , timestamp, url)
             }
 
         lv_modifyCol(5, "sortDesc")  ; sort by recent
@@ -598,14 +591,12 @@ download_off_air(broadcaster_list="") {
                     title     := xml_element(entry, "<title>", "</title>")
                     channel   := xml_element(entry, "<category term=""", """")
                     timestamp := xml_element(entry, "<updated>", "</updated>")
-                    timestamp := subStr(timestamp, 1, 19)  ; remove +00:00 from timestamp
                     link      := xml_element(entry, "<link href=""", """")
                     off_air.push([ this_broadcaster, title, channel, timestamp, link ])
                     }
                 }
             }
         }
-    status_bar(live_total " live", live_following_string())
 }
 xml_element(xml, start, end, index="1") {
     stringGetPos, pos, xml, % start, L%index%

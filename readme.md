@@ -1,6 +1,6 @@
 > autohotkey script to keep up to date with your favourite rpan broadcasters   
 
-<a href="url"><img src="https://i.imgur.com/2B9Fw5g.png"></a><br></br>  
+<a href="url"><img src="https://i.imgur.com/4fU3lMF.png"></a><br></br>  
 
 ## installation  
 - install [AutoHotkey](https://www.autohotkey.com)  
@@ -16,7 +16,7 @@ the .exe is the compiled/self-contained version of the .ahk script that will run
 ## usage  
 
 - double click on a broadcast in the list to open it in your browser  
-- click the checkbox beside a broadcasters name to get desktop notifications for them  
+- to get desktop notifications for a broadcaster, right click their name and select "follow"  
     + to follow a broadcaster that isnt currently live, select "broadcasters / follow new" in the main menu 
 - use  <kbd>ctrl</kbd> + <kbd>r</kbd> to manually update broadcasts. (it updates every 2 minutes by default)  
 &nbsp;
@@ -43,11 +43,11 @@ choose between one of the following:
 
 
 **mini mode**  
-\- resize the window by selecting "window / mini" in the main menu  
+\- resize the window by pressing the <kbd>w</kbd> key or by selecting "window / mini" in the main menu  
 \- turn on always-on-top  
 \- left click on the status bar to view live broadcasts  
 
-<a href="url"><img src="https://i.imgur.com/LOtyYYr.png"></a>
+<a href="url"><img src="https://i.imgur.com/rxUTM86.png"></a>
 &nbsp;
 
 
@@ -60,4 +60,4 @@ to turn off notifications completely, select the option in the "settings" sub-me
 
 **update_frequency**  
 this needs to be changed in the settings.json file for now, just remember to reload the script after making any changes there.   
-set to 0 to turn off checking for new broadcasts. the lowest it can be set to is 1 second  
+set to 0 to turn off checking for new broadcasts. the lowest it can be set to is 1 minute  
