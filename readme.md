@@ -39,6 +39,7 @@ choose between one of the following:
 - live (following only) & off-air  
 
 > the "off-air" option shows live broadcasts for the people you are following and also off-air broadcasts if you choose to download them. it takes a second to download each broadcaster's post history which is why its turned off by default. to enable it, open the "broadcasters" sub-menu and select "download off-air broadcasts" for each broadcaster you want  
+
 &nbsp;
 
 
