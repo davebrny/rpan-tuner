@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.9.1
+version     = 2.9.2
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -304,8 +304,9 @@ else
     {
     a.following[broadcaster].download_off_air := true
     download_off_air(broadcaster)
-    if inStr(selected_view, "following")
+    if inStr(selected_view, "off-air")
         update_listView()
+    status_bar(live_total " live", live_following_string())
     }
 return
 
@@ -560,9 +561,10 @@ update_listView() {
         {
         if (off_air_downloaded != true)
             {
-            download_off_air()
-            if (off_air.maxIndex())
-                off_air_downloaded := true
+            for broadcaster in a.following
+                if (a.following[broadcaster].download_off_air = true)
+                    download_off_air(broadcaster)
+            off_air_downloaded := true
             }
 
         loop, % off_air.maxIndex()
@@ -584,36 +586,29 @@ update_listView() {
 }
 
 
-download_off_air(broadcaster_list="") {
-    global a, off_air
-    if (broadcaster_list = "")
-        {
-        for broadcaster in a.following
-            {
-            if (a.following[broadcaster].download_off_air = true)
-                broadcaster_list .= (broadcaster_list ? "|" : "") . broadcaster
-            }
-        }
+download_off_air(broadcaster) {
+    global off_air
+    static off_air_broadcasters
 
-    loop, parse, broadcaster_list, |
+    if inStr(off_air_broadcasters, broadcaster)
+        return ; if already downloaded this broadcaster
+    else off_air_broadcasters .= broadcaster "`n"
+
+    sb_setText("downloading " broadcaster "...", 2)
+    xml := download("https://www.reddit.com/user/" broadcaster "/submitted.rss")
+    if (xml)
         {
-        this_broadcaster := a_loopField
-        sb_setText("downloading " this_broadcaster "...", 2)
-        xml := download("https://www.reddit.com/user/" this_broadcaster "/submitted.rss")
-        if (xml)
+        strReplace(xml, "<entry>", "", post_count)
+        loop, % post_count
             {
-            strReplace(xml, "<entry>", "", post_count)
-            loop, % post_count
+            entry := get_text(xml, "<entry>", "</entry>", a_index)
+            if inStr(entry, "rpan/r")  ; if post is an rpan broadcast
                 {
-                entry := get_text(xml, "<entry>", "</entry>", a_index)
-                if inStr(entry, "rpan/r")  ; if post is an rpan broadcast
-                    {
-                    title     := get_text(entry, "<title>", "</title>")
-                    channel   := get_text(entry, "<category term=""", """")
-                    timestamp := get_text(entry, "<updated>", "</updated>")
-                    link      := get_text(entry, "<link href=""", """")
-                    off_air.push([ this_broadcaster, title, channel, timestamp, link ])
-                    }
+                title     := get_text(entry, "<title>", "</title>")
+                channel   := get_text(entry, "<category term=""", """")
+                timestamp := get_text(entry, "<updated>", "</updated>")
+                link      := get_text(entry, "<link href=""", """")
+                off_air.push([ broadcaster, title, channel, timestamp, link ])
                 }
             }
         }
