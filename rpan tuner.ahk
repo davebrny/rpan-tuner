@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.9.2
+version     = 2.9.3
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -509,7 +509,7 @@ download(url, token="") {
 
 
 check_live_following() {
-    local this_broadcaster, this_url, new_broadcast
+    global a, live, live_total, previous_broadcasts, off_air
 
     loop, % live_total
         {
@@ -523,6 +523,15 @@ check_live_following() {
             {
             new_broadcast .= (new_broadcast ? ", " : "") . this_broadcaster
             previous_broadcasts .= this_url "`n"
+            }
+
+        if (a.following[this_broadcaster].download_off_air = true)
+            { ; (add live broadcast to off-air list so it can be show once it ends)
+            title       := live.data[a_index].post.title
+            channel     := live.data[a_index].post.subreddit.name
+            timestamp   := live.data[a_index].post.createdAt
+            url         := live.data[a_index].post.outboundLink.url
+            off_air.push([ this_broadcaster, title, channel, timestamp, url ]) 
             }
         }
 
@@ -555,6 +564,9 @@ update_listView() {
         start_time  := live.data[a_index].post.createdAt
         if (this_broadcaster)
             lv_add(lv_icon, this_broadcaster, title, channel, global_rank, start_time, url)
+        
+        if (a.following.hasKey(this_broadcaster)) and (a.following[this_broadcaster].download_off_air = true)
+            live_check .= url "`n"  ; if following and also downloading off-air
         }
 
     if inStr(selected_view, "off-air")
@@ -569,11 +581,13 @@ update_listView() {
 
         loop, % off_air.maxIndex()
             {
+            url := off_air[a_index].5
+            if inStr(live_check, url)
+                continue ; ignore if still live
             broadcaster := off_air[a_index].1
             title       := off_air[a_index].2
             channel     := off_air[a_index].3
             timestamp   := off_air[a_index].4
-            url         := off_air[a_index].5
             lv_add("icon2", broadcaster, title, channel, , timestamp, url)
             }
 
