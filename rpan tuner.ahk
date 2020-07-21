@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.9.3
+version     = 2.9.4
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -518,8 +518,8 @@ check_live_following() {
             continue ; if not following
 
         this_url := live.data[a_index].post.outboundLink.url
-        if !inStr(previous_broadcasts, this_url)                       ; if not in previous list
-        and (a.following[this_broadcaster].show_notifications = true)  ; if notifications enabled for broadcaster
+        if !inStr(previous_broadcasts, this_url)                         ; if not in previous list
+        and (a.following[this_broadcaster].show_notifications != false)  ; if notifications enabled for broadcaster
             {
             new_broadcast .= (new_broadcast ? ", " : "") . this_broadcaster
             previous_broadcasts .= this_url "`n"
