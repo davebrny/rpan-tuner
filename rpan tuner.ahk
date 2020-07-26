@@ -1,6 +1,6 @@
 /*
 [script_info]
-version     = 2.9.4
+version     = 2.9.6
 description = keep up to date with your favourite rpan broadcasters
 author      = davebrny
 source      = https://github.com/davebrny/rpan-tuner
@@ -511,6 +511,9 @@ download(url, token="") {
 check_live_following() {
     global a, live, live_total, previous_broadcasts, off_air
 
+    for index in off_air
+        off_air_list .= off_air[a_index].5 "`n"  ; list urls
+
     loop, % live_total
         {
         this_broadcaster := live.data[a_index].post.authorInfo.name
@@ -526,12 +529,12 @@ check_live_following() {
             }
 
         if (a.following[this_broadcaster].download_off_air = true)
+        and !inStr(off_air_list, this_url)  ; if not already added
             { ; (add live broadcast to off-air list so it can be show once it ends)
-            title       := live.data[a_index].post.title
-            channel     := live.data[a_index].post.subreddit.name
-            timestamp   := live.data[a_index].post.createdAt
-            url         := live.data[a_index].post.outboundLink.url
-            off_air.push([ this_broadcaster, title, channel, timestamp, url ]) 
+            title     := live.data[a_index].post.title
+            channel   := live.data[a_index].post.subreddit.name
+            timestamp := live.data[a_index].post.createdAt
+            off_air.push([ this_broadcaster, title, channel, timestamp, this_url ]) 
             }
         }
 
@@ -565,8 +568,11 @@ update_listView() {
         if (this_broadcaster)
             lv_add(lv_icon, this_broadcaster, title, channel, global_rank, start_time, url)
         
-        if (a.following.hasKey(this_broadcaster)) and (a.following[this_broadcaster].download_off_air = true)
-            live_check .= url "`n"  ; if following and also downloading off-air
+        if (a.following[this_broadcaster].download_off_air = true)
+            {
+            split := strSplit(url, "/")
+            live_check .= split[7] "`n"  ; split7 is url id
+            }
         }
 
     if inStr(selected_view, "off-air")
@@ -582,8 +588,9 @@ update_listView() {
         loop, % off_air.maxIndex()
             {
             url := off_air[a_index].5
-            if inStr(live_check, url)
-                continue ; ignore if still live
+            split := strSplit(url, "/")
+            if inStr(live_check, split[7])
+                continue ; ignore if already added
             broadcaster := off_air[a_index].1
             title       := off_air[a_index].2
             channel     := off_air[a_index].3
